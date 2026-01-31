@@ -1,0 +1,163 @@
+Table users {
+  id uuid [pk]
+  name varchar
+  email varchar [unique]
+  password varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table roles {
+  id uuid [pk]
+  name varchar [unique]
+  description varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table permissions {
+  id uuid [pk]
+  key varchar [unique] // contoh: surat_masuk.verify
+  description varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table role_user {
+  id uuid [pk]
+  user_id uuid
+  role_id uuid
+}
+
+Table permission_role {
+  id uuid [pk]
+  role_id uuid
+  permission_id uuid
+  allowed boolean
+}
+
+/* =======================
+   DOMAIN: SURAT MASUK
+======================= */
+Table surat_masuk {
+  id uuid [pk]
+  nomor_surat varchar
+  tanggal_terima date
+  asal_surat varchar
+  pengirim varchar
+  perihal varchar
+  status varchar
+  created_by uuid
+  created_at timestamp
+  updated_at timestamp
+}
+
+/* =======================
+   DOMAIN: SURAT KELUAR
+======================= */
+Table surat_keluar {
+  id uuid [pk]
+  nomor_surat varchar
+  tanggal_surat date
+  tujuan varchar
+  perihal varchar
+  status varchar
+  created_by uuid
+  approved_by uuid
+  created_at timestamp
+  updated_at timestamp
+}
+
+/* =======================
+   DISPOSISI & TINDAK LANJUT
+======================= */
+Table disposisi {
+  id uuid [pk]
+  surat_masuk_id uuid
+  dari_user uuid
+  ke_unit varchar
+  catatan text
+  status varchar
+  created_at timestamp
+}
+
+Table tindak_lanjut {
+  id uuid [pk]
+  surat_masuk_id uuid
+  unit varchar
+  deskripsi text
+  created_at timestamp
+}
+
+/* =======================
+   LAMPIRAN & ARSIP
+======================= */
+Table lampiran {
+  id uuid [pk]
+  surat_masuk_id uuid [null]
+  surat_keluar_id uuid [null]
+  file_path varchar
+  created_at timestamp
+}
+
+Table arsip {
+  id uuid [pk]
+  jenis_surat varchar // masuk / keluar
+  surat_id uuid
+  archived_at timestamp
+}
+
+Table activity_logs {
+  id uuid [pk]
+  user_id uuid [null]
+
+  method varchar        // GET, POST, PUT, DELETE
+  url text              // endpoint yang di-hit
+  status_code integer   // response status (200, 403, 500)
+
+  request_payload json  // body request (sanitized)
+  response_payload json // response (optional / sanitized)
+
+  ip_address varchar
+  user_agent text
+
+  created_at timestamp
+}
+
+
+
+/* =======================
+   NOTIFICATION
+======================= */
+Table notifications {
+  id uuid [pk]
+  user_id uuid
+  title varchar
+  message text
+  is_read boolean
+  created_at timestamp
+}
+
+/* =======================
+   RELATIONS
+======================= */
+Ref: role_user.user_id > users.id
+Ref: role_user.role_id > roles.id
+
+Ref: permission_role.role_id > roles.id
+Ref: permission_role.permission_id > permissions.id
+
+Ref: surat_masuk.created_by > users.id
+Ref: surat_keluar.created_by > users.id
+Ref: surat_keluar.approved_by > users.id
+
+Ref: disposisi.surat_masuk_id > surat_masuk.id
+Ref: disposisi.dari_user > users.id
+
+Ref: tindak_lanjut.surat_masuk_id > surat_masuk.id
+
+Ref: lampiran.surat_masuk_id > surat_masuk.id
+Ref: lampiran.surat_keluar_id > surat_keluar.id
+
+Ref: notifications.user_id > users.id
+Ref: activity_logs.user_id > users.id
