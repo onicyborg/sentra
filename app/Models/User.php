@@ -3,14 +3,18 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasUuid;
 
     /**
      * The attributes that are mass assignable.
@@ -30,7 +34,6 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
-        'remember_token',
     ];
 
     /**
@@ -39,7 +42,39 @@ class User extends Authenticatable
      * @var array<string, string>
      */
     protected $casts = [
-        'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /* =======================
+       RBAC
+    ======================= */
+
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Roles::class, 'role_user');
+    }
+
+    public function hasPermission(string $permissionKey): bool
+    {
+        return $this->roles()
+            ->whereHas('permissions', function ($q) use ($permissionKey) {
+                $q->where('permissions.permission_key', $permissionKey)
+                  ->where('permission_role.allowed', true);
+            })
+            ->exists();
+    }
+
+    /* =======================
+       RELATION SURAT
+    ======================= */
+
+    public function suratMasuk(): HasMany
+    {
+        return $this->hasMany(SuratMasuk::class, 'created_by');
+    }
+
+    public function suratKeluar(): HasMany
+    {
+        return $this->hasMany(SuratKeluar::class, 'created_by');
+    }
 }
