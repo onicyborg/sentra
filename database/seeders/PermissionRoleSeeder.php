@@ -2,22 +2,19 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PermissionRoleSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         $roles = DB::table('roles')->pluck('id', 'name');
         $permissions = DB::table('permissions')->pluck('id', 'permission_key');
 
         $matrix = [
+            // 🔥 ADMIN SYSTEM
             'admin_system' => array_keys($permissions->toArray()),
 
             'staf_administrasi' => [
