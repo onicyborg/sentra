@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     @hasSection('page_title')
-        <title>SIMKESA - @yield('page_title')</title>
+        <title>SENTRA - @yield('page_title')</title>
     @else
-        <title>SIMKESA - Sistem Informasi Monitoring Kehadiran Siswa</title>
+        <title>SENTRA - Sistem Informasi Monitoring Kehadiran Siswa</title>
     @endif
 
     <base href="{{ asset('') }}">
@@ -91,7 +91,7 @@
                             <img alt="Logo" src="{{ asset('assets/media/logos/default-small.svg') }}"
                                 class="h-30px" />
                             <span class="ms-3 fw-bold fs-4 d-none d-sm-inline text-gray-800">
-                                SIMKESA
+                                SENTRA
                             </span>
                         </a>
                     </div>
@@ -153,7 +153,7 @@
                         <a href="{{ url('/') }}" class="d-flex align-items-center">
                             <img alt="Logo" src="{{ asset('assets/media/logos/default-small.svg') }}"
                                 class="h-25px app-sidebar-logo-default" />
-                            <span class="ms-3 fw-semibold text-gray-800 fs-6 sidebar-title">SIMKESA</span>
+                            <span class="ms-3 fw-semibold text-gray-800 fs-6 sidebar-title">SENTRA</span>
                         </a>
                     </div>
                     <!--end::Sidebar logo-->
@@ -181,9 +181,9 @@
                     <!--begin::Footer-->
                     <div class="app-footer py-3 d-flex flex-column flex-md-row flex-center flex-md-stack"
                         id="kt_app_footer">
-                        <div class="text-gray-700 order-2 order-md-1">
+                        <div class="text-gray-700 order-2 order-md-1 w-100 text-center">
                             <span class="text-muted fw-semibold me-1">© {{ date('Y') }}</span>
-                            <span class="text-gray-600 fw-semibold">SIMKESA</span>
+                            <span class="text-gray-600 fw-semibold">SENTRA</span>
                         </div>
                     </div>
                     <!--end::Footer-->
