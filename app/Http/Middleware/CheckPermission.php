@@ -8,7 +8,7 @@ class CheckPermission
 {
     public function handle($request, Closure $next, string $permission)
     {
-        abort_unless(auth()->user()?->hasPermission($permission), 403);
+        abort_unless($request->user()?->can($permission), 403);
         return $next($request);
     }
 }
