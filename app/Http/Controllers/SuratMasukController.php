@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Disposisi;
 use App\Models\Lampiran;
 use App\Models\SuratMasuk;
 use Illuminate\Http\Request;
@@ -9,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use App\Services\NotificationService;
 
 class SuratMasukController extends Controller
 {
@@ -70,6 +72,15 @@ class SuratMasukController extends Controller
                     ]);
                 }
             }
+
+            // Event: surat_masuk.created -> to permission surat_masuk.verify
+            try {
+                app(NotificationService::class)->sendToPermission(
+                    'surat_masuk.verify',
+                    'Surat Masuk Baru',
+                    'Surat masuk baru: ' . ($sm->nomor_surat ?? '-') . ' - ' . $sm->perihal
+                );
+            } catch (\Throwable $e) { /* handled by global logs if any */ }
         });
 
         return back()->with('success', 'Surat masuk berhasil ditambahkan');
@@ -78,7 +89,9 @@ class SuratMasukController extends Controller
     public function show(string $id)
     {
         $sm = SuratMasuk::findOrFail($id);
-        $lampiran = $sm->lampiran()->get(['id','file_path']);
+        $lampiran = $sm->lampiran()
+            ->where('file_path', 'like', 'lampiran/surat_masuk/%')
+            ->get(['id','file_path']);
 
         return response()->json([
             'id' => $sm->id,
@@ -162,6 +175,16 @@ class SuratMasukController extends Controller
             $sm->status = 'terverifikasi';
             $sm->save();
             // Activity log assumed handled globally if enabled
+            // Event: surat_masuk.verified -> to created_by
+            try {
+                if ($sm->created_by) {
+                    app(NotificationService::class)->sendToUser(
+                        $sm->created_by,
+                        'Surat Masuk Terverifikasi',
+                        'Surat masuk ' . ($sm->nomor_surat ?? '-') . ' telah diverifikasi.'
+                    );
+                }
+            } catch (\Throwable $e) { }
         });
 
         return back()->with('success', 'Surat masuk berhasil diverifikasi');
@@ -181,7 +204,7 @@ class SuratMasukController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $sm) {
-            \App\Models\Disposisi::create([
+            Disposisi::create([
                 'surat_masuk_id' => $sm->id,
                 'dari_user' => auth()->id(),
                 'ke_unit' => $validated['ke_unit'],
@@ -190,6 +213,15 @@ class SuratMasukController extends Controller
             ]);
             $sm->status = 'didisposisikan';
             $sm->save();
+
+            // Event: surat_masuk.distributed -> to permission surat_masuk.follow_up
+            try {
+                app(NotificationService::class)->sendToPermission(
+                    'surat_masuk.follow_up',
+                    'Surat Masuk Didisposisikan',
+                    'Surat masuk ' . ($sm->nomor_surat ?? '-') . ' membutuhkan tindak lanjut.'
+                );
+            } catch (\Throwable $e) { }
         });
 
         return back()->with('success', 'Surat masuk berhasil didisposisikan');

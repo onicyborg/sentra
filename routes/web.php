@@ -6,6 +6,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\SuratMasukController;
 use App\Http\Controllers\SuratKeluarController;
+use App\Http\Controllers\TindakLanjutController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\PermissionController as AdminPermissionController;
@@ -79,4 +81,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/send', [SuratKeluarController::class, 'send'])->name('surat-keluar.send');
         Route::post('/{id}/approve', [SuratKeluarController::class, 'approve'])->name('surat-keluar.approve');
     });
+
+    // Non-admin: Tindak Lanjut Surat Masuk (Unit Kerja)
+    Route::get('/tindak-lanjut', [TindakLanjutController::class, 'index'])->name('tindak-lanjut.index');
+    Route::post('/tindak-lanjut/{suratMasukId}', [TindakLanjutController::class, 'store'])->name('tindak-lanjut.store');
+
+    // Non-admin: Notifications
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
 });

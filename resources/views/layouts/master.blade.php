@@ -106,6 +106,52 @@
                         </div>
                         @auth
                             <div class="d-flex align-items-center">
+                                <!--begin::Notifications dropdown-->
+                                <div class="me-4">
+                                    @php
+                                        $uid = Auth::id();
+                                        $unread = \Illuminate\Support\Facades\DB::table('notifications')
+                                            ->where('user_id', $uid)
+                                            ->where('is_read', false)
+                                            ->count();
+                                        $latest = \Illuminate\Support\Facades\DB::table('notifications')
+                                            ->where('user_id', $uid)
+                                            ->orderByDesc('created_at')
+                                            ->limit(5)
+                                            ->get(['id','title','message','is_read','created_at']);
+                                    @endphp
+                                    <div class="dropdown">
+                                        <button class="btn btn-icon btn-light btn-active-light-primary position-relative w-35px h-35px" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifikasi">
+                                            <i class="bi bi-bell"></i>
+                                            @if($unread > 0)
+                                            <span class="position-absolute top-0 start-100 translate-middle badge badge-circle badge-danger">{{ $unread }}</span>
+                                            @endif
+                                        </button>
+                                        <div class="dropdown-menu dropdown-menu-end p-0 overflow-hidden" style="min-width: 320px;">
+                                            <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
+                                                <span class="fw-bold">Notifikasi</span>
+                                                <a href="{{ route('notifications.index') }}" class="text-primary fs-8">Lihat semua</a>
+                                            </div>
+                                            <div class="p-3">
+                                                @forelse ($latest as $n)
+                                                    <form method="POST" action="{{ route('notifications.read', $n->id) }}" class="mb-3">
+                                                        @csrf
+                                                        <button type="submit" class="w-100 text-start btn btn-light d-flex align-items-start">
+                                                            <div class="flex-grow-1">
+                                                                <div class="fw-bold {{ $n->is_read ? 'text-muted' : 'text-gray-900' }}">{{ $n->title }}</div>
+                                                                <div class="text-muted fs-8">{{ $n->message }}</div>
+                                                                <div class="text-muted fs-9">{{ \Carbon\Carbon::parse($n->created_at)->diffForHumans() }}</div>
+                                                            </div>
+                                                        </button>
+                                                    </form>
+                                                @empty
+                                                    <div class="text-center text-muted py-5">Tidak ada notifikasi</div>
+                                                @endforelse
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!--end::Notifications dropdown-->
                                 <div class="d-none d-md-flex flex-column me-3">
                                     <span class="fw-semibold text-gray-600 fs-7">Login sebagai</span>
                                     <span class="fw-bold text-gray-800 fs-6">

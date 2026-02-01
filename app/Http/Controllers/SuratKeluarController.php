@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Services\NotificationService;
 
 class SuratKeluarController extends Controller
 {
@@ -64,6 +65,15 @@ class SuratKeluarController extends Controller
                     ]);
                 }
             }
+
+            // Event: surat_keluar.created -> to permission surat_keluar.approve
+            try {
+                app(NotificationService::class)->sendToPermission(
+                    'surat_keluar.approve',
+                    'Surat Keluar Baru',
+                    'Surat keluar baru: ' . ($sk->nomor_surat ?? '-') . ' - ' . $sk->perihal
+                );
+            } catch (\Throwable $e) { }
         });
 
         return back()->with('success', 'Surat keluar berhasil ditambahkan');
@@ -150,6 +160,22 @@ class SuratKeluarController extends Controller
         // Catat tanggal_kirim & media bila ada kolomnya; jika belum ada, bisa di-log/abaikan
         $sk->save();
 
+        // Event: surat_keluar.sent -> to created_by and permission surat_keluar.approve
+        try {
+            if ($sk->created_by) {
+                app(NotificationService::class)->sendToUser(
+                    $sk->created_by,
+                    'Surat Keluar Terkirim',
+                    'Surat keluar ' . ($sk->nomor_surat ?? '-') . ' telah dikirim.'
+                );
+            }
+            app(NotificationService::class)->sendToPermission(
+                'surat_keluar.approve',
+                'Surat Keluar Terkirim',
+                'Surat keluar ' . ($sk->nomor_surat ?? '-') . ' telah dikirim.'
+            );
+        } catch (\Throwable $e) { }
+
         return back()->with('success', 'Surat keluar berhasil dikirim');
     }
 
@@ -175,6 +201,17 @@ class SuratKeluarController extends Controller
             }
             $sk->save();
         });
+
+        // Event: surat_keluar.approved/rejected -> to created_by
+        try {
+            if ($sk->created_by) {
+                app(NotificationService::class)->sendToUser(
+                    $sk->created_by,
+                    $validated['aksi'] === 'approve' ? 'Surat Keluar Disahkan' : 'Surat Keluar Ditolak',
+                    'Surat keluar ' . ($sk->nomor_surat ?? '-') . ($validated['aksi'] === 'approve' ? ' telah disahkan.' : ' ditolak.')
+                );
+            }
+        } catch (\Throwable $e) { }
 
         return back()->with('success', $validated['aksi'] === 'approve' ? 'Surat keluar disahkan' : 'Catatan penolakan tersimpan');
     }
