@@ -50,13 +50,22 @@ class SuratKeluarController extends Controller
         if (auth()->user()?->can('surat_keluar.approve')) {
             $q->whereIn('status', ['draft', 'ditolak']);
         }
-        $q->orderByRaw("CASE status
-            WHEN 'draft' THEN 1
-            WHEN 'disahkan' THEN 2
-            WHEN 'terkirim' THEN 3
-            ELSE 4 END")
-          ->orderByDesc('surat_keluar.created_at');
-        $items = $q->get(['surat_keluar.id','nomor_surat','tanggal_surat','tujuan','perihal','status']);
+        $items = $q->get(['surat_keluar.id','nomor_surat','tanggal_surat','tujuan','perihal','status','surat_keluar.created_at']);
+
+        // Order in PHP to avoid DB-specific raw CASE
+        $priority = [
+            'draft' => 1,
+            'disahkan' => 2,
+            'terkirim' => 3,
+        ];
+        $items = $items->sort(function ($a, $b) use ($priority) {
+            $pa = $priority[$a->status] ?? 99;
+            $pb = $priority[$b->status] ?? 99;
+            if ($pa === $pb) {
+                return ($b->created_at <=> $a->created_at);
+            }
+            return $pa <=> $pb;
+        })->values();
 
         return view('surat-keluar.index', [
             'items' => $items,

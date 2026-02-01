@@ -37,15 +37,25 @@ class SuratMasukController extends Controller
         if (auth()->user()?->can('surat_masuk.verify') || auth()->user()?->can('surat_masuk.distribute')) {
             $q->whereIn('status', ['diterima', 'terverifikasi']);
         }
-        $q->orderByRaw("CASE status
-            WHEN 'draft' THEN 1
-            WHEN 'diterima' THEN 2
-            WHEN 'terverifikasi' THEN 3
-            WHEN 'didisposisikan' THEN 4
-            WHEN 'ditindaklanjuti' THEN 5
-            ELSE 6 END")
-          ->orderByDesc('surat_masuk.created_at');
-        $items = $q->get(['surat_masuk.id','nomor_surat','tanggal_terima','asal_surat','pengirim','perihal','status']);
+        $items = $q->get(['surat_masuk.id','nomor_surat','tanggal_terima','asal_surat','pengirim','perihal','status','surat_masuk.created_at']);
+
+        // Order in PHP to avoid DB-specific raw CASE
+        $priority = [
+            'draft' => 1,
+            'diterima' => 2,
+            'terverifikasi' => 3,
+            'didisposisikan' => 4,
+            'ditindaklanjuti' => 5,
+        ];
+        $items = $items->sort(function ($a, $b) use ($priority) {
+            $pa = $priority[$a->status] ?? 99;
+            $pb = $priority[$b->status] ?? 99;
+            if ($pa === $pb) {
+                // created_at desc
+                return ($b->created_at <=> $a->created_at);
+            }
+            return $pa <=> $pb;
+        })->values();
 
         return view('surat-masuk.index', [
             'items' => $items,
