@@ -77,5 +77,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}', [SuratKeluarController::class, 'show'])->name('surat-keluar.show');
         Route::put('/{id}', [SuratKeluarController::class, 'update'])->name('surat-keluar.update');
         Route::post('/{id}/send', [SuratKeluarController::class, 'send'])->name('surat-keluar.send');
+        Route::post('/{id}/approve', [SuratKeluarController::class, 'approve'])->name('surat-keluar.approve');
     });
 });

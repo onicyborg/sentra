@@ -23,7 +23,7 @@
                             <th>Tujuan</th>
                             <th>Perihal</th>
                             <th>Status</th>
-                            <th class="text-end w-200px">Action</th>
+                            <th class="text-end w-250px">Action</th>
                         </tr>
                     </thead>
                     <tbody class="text-gray-700 fw-semibold">
@@ -41,20 +41,28 @@
                                         <span class="badge badge-light-success">Disahkan</span>
                                     @elseif($status === 'terkirim')
                                         <span class="badge badge-light-primary">Terkirim</span>
+                                    @elseif($status === 'ditolak')
+                                        <span class="badge badge-light-danger">Ditolak</span>
                                     @else
                                         <span class="badge badge-light">{{ $it->status }}</span>
                                     @endif
                                 </td>
                                 <td class="text-end">
                                     @can('surat_keluar.create')
-                                    @php $editable = in_array(strtolower($it->status), ['draft']); @endphp
+                                    @php $editable = in_array(strtolower($it->status), ['draft', 'ditolak']); @endphp
                                     <button class="btn btn-light-primary btn-sm me-2 btn-edit {{ $editable ? '' : 'disabled' }}" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#editSuratKeluarModal">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
                                     @endcan
+                                    @can('surat_keluar.approve')
+                                    @php $approvable = strtolower($it->status) === 'draft'; @endphp
+                                    <button class="btn btn-light-success btn-sm me-2 btn-approve {{ $approvable ? '' : 'disabled' }}" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#approveSuratKeluarModal">
+                                        <i class="bi bi-check2-circle"></i>
+                                    </button>
+                                    @endcan
                                     @can('surat_keluar.send')
                                     @php $sendable = strtolower($it->status) === 'disahkan'; @endphp
-                                    <button class="btn btn-light-success btn-sm btn-send {{ $sendable ? '' : 'disabled' }}" data-id="{{ $it->id }}">
+                                    <button class="btn btn-light-success btn-sm btn-send {{ $sendable ? '' : 'disabled' }}" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#sendSuratKeluarModal">
                                         <i class="bi bi-send"></i>
                                     </button>
                                     @endcan
@@ -69,6 +77,8 @@
 
     @include('surat-keluar.modal-create')
     @include('surat-keluar.modal-edit')
+    @include('surat-keluar.modal-approve')
+    @include('surat-keluar.modal-send')
 @endsection
 
 @push('scripts')
@@ -252,25 +262,49 @@
             });
         });
 
-        // Send action
+        // Send modal open & submit
+        const sendForm = document.getElementById('sendSuratKeluarForm');
         document.querySelectorAll('.btn-send').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
-                const tanggal = prompt('Tanggal kirim (YYYY-MM-DD):');
-                if (!tanggal) return;
-                const media = prompt('Media pengiriman (opsional):') || '';
-                const fd = new FormData();
-                fd.append('tanggal_kirim', tanggal);
-                fd.append('media_pengiriman', media);
-                fetch(`{{ url('/surat-keluar') }}/${id}/send`, {
-                    method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    body: fd
-                }).then(async r => {
-                    if (r.ok) { location.reload(); return; }
-                    const d = await r.json().catch(() => ({}));
-                    toastr.error(d.message || 'Gagal mengirim surat');
-                });
+                if (sendForm) sendForm.action = `{{ url('/surat-keluar') }}/${id}/send`;
+            });
+        });
+        sendForm?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const url = sendForm.action;
+            const fd = new FormData(sendForm);
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: fd
+            }).then(async r => {
+                if (r.ok) { location.reload(); return; }
+                const d = await r.json().catch(() => ({}));
+                toastr.error(d.message || 'Gagal mengirim surat');
+            });
+        });
+
+        // Approve modal open & submit
+        const approveForm = document.getElementById('approveSuratKeluarForm');
+        document.querySelectorAll('.btn-approve').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                if (approveForm) approveForm.action = `{{ url('/surat-keluar') }}/${id}/approve`;
+            });
+        });
+        approveForm?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const url = approveForm.action;
+            const fd = new FormData(approveForm);
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: fd
+            }).then(async r => {
+                if (r.ok) { location.reload(); return; }
+                const d = await r.json().catch(() => ({}));
+                toastr.error(d.message || 'Gagal memproses approval');
             });
         });
     </script>

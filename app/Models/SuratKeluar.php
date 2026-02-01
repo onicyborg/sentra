@@ -20,6 +20,7 @@ class SuratKeluar extends Model
         'tujuan',
         'perihal',
         'status',
+        'send_at',
         'created_by',
         'approved_by',
     ];

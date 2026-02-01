@@ -17,13 +17,16 @@ class SuratKeluarController extends Controller
         $this->middleware('can:surat_keluar.read')->only(['index', 'show']);
         $this->middleware('can:surat_keluar.create')->only(['store', 'update']);
         $this->middleware('can:surat_keluar.send')->only(['send']);
+        $this->middleware('can:surat_keluar.approve')->only(['approve']);
     }
 
     public function index()
     {
-        $items = SuratKeluar::query()
-            ->latest('created_at')
-            ->get(['id','nomor_surat','tanggal_surat','tujuan','perihal','status']);
+        $q = SuratKeluar::query()->latest('created_at');
+        if (auth()->user()?->can('surat_keluar.approve')) {
+            $q->whereIn('status', ['draft', 'ditolak']);
+        }
+        $items = $q->get(['id','nomor_surat','tanggal_surat','tujuan','perihal','status']);
 
         return view('surat-keluar.index', [
             'items' => $items,
@@ -78,7 +81,7 @@ class SuratKeluarController extends Controller
             'tujuan' => $sk->tujuan,
             'perihal' => $sk->perihal,
             'status' => $sk->status,
-            'editable' => in_array($sk->status, ['draft']),
+            'editable' => in_array($sk->status, ['draft','ditolak']),
             'sendable' => ($sk->status === 'disahkan'),
             'lampiran' => $lampiran->map(function ($l) {
                 $raw = Storage::disk('public')->url($l->file_path);
@@ -95,7 +98,7 @@ class SuratKeluarController extends Controller
     public function update(Request $request, string $id)
     {
         $sk = SuratKeluar::findOrFail($id);
-        if (!in_array($sk->status, ['draft'])) {
+        if (!in_array($sk->status, ['draft', 'ditolak'])) {
             return back()->with('error', 'Surat tidak dapat diedit pada status saat ini.');
         }
 
@@ -113,6 +116,7 @@ class SuratKeluarController extends Controller
             $sk->tanggal_surat = $validated['tanggal_surat'];
             $sk->tujuan = $validated['tujuan'];
             $sk->perihal = $validated['perihal'];
+            $sk->status = 'draft';
             $sk->save();
 
             if ($request->hasFile('lampiran')) {
@@ -147,5 +151,31 @@ class SuratKeluarController extends Controller
         $sk->save();
 
         return back()->with('success', 'Surat keluar berhasil dikirim');
+    }
+
+    public function approve(Request $request, string $id)
+    {
+        $sk = SuratKeluar::findOrFail($id);
+        if (!in_array($sk->status, ['draft', 'ditolak'])) {
+            return back()->with('error', 'Surat tidak dapat di-approve pada status saat ini.');
+        }
+
+        $validated = $request->validate([
+            'aksi' => ['required','in:approve,reject'],
+            'catatan' => ['nullable','string','max:1000'],
+        ]);
+
+        DB::transaction(function () use ($validated, $sk) {
+            if ($validated['aksi'] === 'approve') {
+                $sk->status = 'disahkan';
+                $sk->approved_by = Auth::id();
+            } else {
+                $sk->status = 'ditolak';
+                $sk->approved_by = Auth::id();
+            }
+            $sk->save();
+        });
+
+        return back()->with('success', $validated['aksi'] === 'approve' ? 'Surat keluar disahkan' : 'Catatan penolakan tersimpan');
     }
 }
