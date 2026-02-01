@@ -1,0 +1,295 @@
+@extends('layouts.master')
+
+@section('page_title', 'Surat Keluar')
+
+@section('content')
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-5">
+        <h3 class="fw-bold mb-0">Surat Keluar</h3>
+        @can('surat_keluar.create')
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createSuratKeluarModal" id="btnAddSuratKeluar">
+            <i class="bi bi-plus-lg me-2"></i>Tambah Surat Keluar
+        </button>
+        @endcan
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table align-middle table-row-dashed fs-6 gy-5" id="surat_keluar_table">
+                    <thead>
+                        <tr class="text-start text-muted fw-bold fs-7 text-uppercase gs-0">
+                            <th>Nomor Surat</th>
+                            <th>Tanggal Surat</th>
+                            <th>Tujuan</th>
+                            <th>Perihal</th>
+                            <th>Status</th>
+                            <th class="text-end w-200px">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-gray-700 fw-semibold">
+                        @foreach ($items as $it)
+                            <tr>
+                                <td>{{ $it->nomor_surat }}</td>
+                                <td>{{ $it->tanggal_surat }}</td>
+                                <td>{{ $it->tujuan }}</td>
+                                <td>{{ $it->perihal }}</td>
+                                <td>
+                                    @php $status = strtolower($it->status); @endphp
+                                    @if($status === 'draft')
+                                        <span class="badge badge-light-secondary">Draft</span>
+                                    @elseif($status === 'disahkan')
+                                        <span class="badge badge-light-success">Disahkan</span>
+                                    @elseif($status === 'terkirim')
+                                        <span class="badge badge-light-primary">Terkirim</span>
+                                    @else
+                                        <span class="badge badge-light">{{ $it->status }}</span>
+                                    @endif
+                                </td>
+                                <td class="text-end">
+                                    @can('surat_keluar.create')
+                                    @php $editable = in_array(strtolower($it->status), ['draft']); @endphp
+                                    <button class="btn btn-light-primary btn-sm me-2 btn-edit {{ $editable ? '' : 'disabled' }}" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#editSuratKeluarModal">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    @endcan
+                                    @can('surat_keluar.send')
+                                    @php $sendable = strtolower($it->status) === 'disahkan'; @endphp
+                                    <button class="btn btn-light-success btn-sm btn-send {{ $sendable ? '' : 'disabled' }}" data-id="{{ $it->id }}">
+                                        <i class="bi bi-send"></i>
+                                    </button>
+                                    @endcan
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @include('surat-keluar.modal-create')
+    @include('surat-keluar.modal-edit')
+@endsection
+
+@push('scripts')
+    <script>
+        $(document).ready(function() {
+            $('#surat_keluar_table').DataTable({
+                pageLength: 10,
+                ordering: true,
+                order: [[1, 'desc']],
+            });
+        });
+
+        // Create submit via AJAX
+        const createForm = document.getElementById('createSuratKeluarForm');
+        (function() {
+            const dz = document.getElementById('c_dropzone_sk');
+            const fileInput = document.getElementById('c_lampiran_sk');
+            const list = document.getElementById('c_lampiran_list_sk');
+            if (!dz || !fileInput || !list) return;
+
+            let dt = new DataTransfer();
+
+            function renderList() {
+                list.innerHTML = '';
+                if (dt.files.length === 0) return;
+                for (let i = 0; i < dt.files.length; i++) {
+                    const f = dt.files[i];
+                    const row = document.createElement('div');
+                    row.className = 'd-flex align-items-center justify-content-between border rounded p-2 mb-2';
+                    const name = document.createElement('div');
+                    name.textContent = `${f.name} (${Math.ceil(f.size/1024)} KB)`;
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-sm btn-light-danger';
+                    btn.textContent = 'Hapus';
+                    btn.addEventListener('click', () => {
+                        const ndt = new DataTransfer();
+                        for (let j = 0; j < dt.files.length; j++) {
+                            if (j !== i) ndt.items.add(dt.files[j]);
+                        }
+                        dt = ndt;
+                        fileInput.files = dt.files;
+                        renderList();
+                    });
+                    row.appendChild(name);
+                    row.appendChild(btn);
+                    list.appendChild(row);
+                }
+            }
+
+            function addFiles(files) {
+                for (const f of files) dt.items.add(f);
+                fileInput.files = dt.files;
+                renderList();
+            }
+
+            dz.addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
+            dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('border-primary'); });
+            dz.addEventListener('dragleave', () => dz.classList.remove('border-primary'));
+            dz.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dz.classList.remove('border-primary');
+                if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files);
+            });
+            fileInput.addEventListener('change', () => { if (fileInput.files?.length) addFiles(fileInput.files); });
+        })();
+        createForm?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(createForm);
+            fetch('{{ route('surat-keluar.store') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: formData
+            }).then(async r => {
+                if (r.ok) { location.reload(); return; }
+                const d = await r.json().catch(() => ({}));
+                toastr.error(d.message || 'Gagal menyimpan surat keluar');
+            });
+        });
+
+        // Edit
+        const editForm = document.getElementById('editSuratKeluarForm');
+        (function() {
+            const dz = document.getElementById('e_dropzone_sk');
+            const fileInput = document.getElementById('e_lampiran_sk');
+            const list = document.getElementById('e_lampiran_new_list_sk');
+            if (!dz || !fileInput || !list) return;
+
+            let dt = new DataTransfer();
+            function renderList() {
+                list.innerHTML = '';
+                if (dt.files.length === 0) return;
+                for (let i = 0; i < dt.files.length; i++) {
+                    const f = dt.files[i];
+                    const row = document.createElement('div');
+                    row.className = 'd-flex align-items-center justify-content-between border rounded p-2 mb-2';
+                    const name = document.createElement('div');
+                    name.textContent = `${f.name} (${Math.ceil(f.size/1024)} KB)`;
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-sm btn-light-danger';
+                    btn.textContent = 'Hapus';
+                    btn.addEventListener('click', () => {
+                        const ndt = new DataTransfer();
+                        for (let j = 0; j < dt.files.length; j++) {
+                            if (j !== i) ndt.items.add(dt.files[j]);
+                        }
+                        dt = ndt;
+                        fileInput.files = dt.files;
+                        renderList();
+                    });
+                    row.appendChild(name);
+                    row.appendChild(btn);
+                    list.appendChild(row);
+                }
+            }
+            function addFiles(files) { for (const f of files) dt.items.add(f); fileInput.files = dt.files; renderList(); }
+            function reset() { dt = new DataTransfer(); fileInput.files = dt.files; list.innerHTML = ''; }
+
+            dz.addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
+            dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('border-primary'); });
+            dz.addEventListener('dragleave', () => dz.classList.remove('border-primary'));
+            dz.addEventListener('drop', (e) => { e.preventDefault(); dz.classList.remove('border-primary'); if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); });
+            fileInput.addEventListener('change', () => { if (fileInput.files?.length) addFiles(fileInput.files); });
+
+            window._resetEditDropzoneSK = reset;
+        })();
+        document.querySelectorAll('.btn-edit').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                fetch(`{{ url('/surat-keluar') }}/${id}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (typeof window._resetEditDropzoneSK === 'function') window._resetEditDropzoneSK();
+                        const editable = !!data.editable;
+                        const sendable = !!data.sendable;
+                        const f = editForm;
+                        f.action = `{{ url('/surat-keluar') }}/${id}`;
+                        f.querySelector('#e_nomor_surat_sk').value = data.nomor_surat || '';
+                        f.querySelector('#e_tanggal_surat_sk').value = (data.tanggal_surat || '').substring(0,10);
+                        f.querySelector('#e_tujuan_sk').value = data.tujuan || '';
+                        f.querySelector('#e_perihal_sk').value = data.perihal || '';
+
+                        ['e_nomor_surat_sk','e_tanggal_surat_sk','e_tujuan_sk','e_perihal_sk','e_lampiran_sk'].forEach(idf => {
+                            const el = f.querySelector('#'+idf);
+                            if (el) el.disabled = !editable;
+                        });
+                        const uploadGroup = document.getElementById('e_lampiran_group_sk');
+                        if (uploadGroup) uploadGroup.style.display = editable ? '' : 'none';
+
+                        const list = document.getElementById('e_lampiran_list_sk');
+                        list.innerHTML = '';
+                        (data.lampiran || []).forEach(l => {
+                            const a = document.createElement('a');
+                            a.href = l.url; a.target = '_blank'; a.textContent = l.name; a.className = 'd-block mb-1';
+                            list.appendChild(a);
+                        });
+
+                        const btnSend = document.getElementById('btnSendSuratKeluar');
+                        if (btnSend) btnSend.disabled = !sendable;
+                    });
+            });
+        });
+
+        // Edit submit
+        editForm?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const url = editForm.action;
+            const formData = new FormData(editForm);
+            formData.append('_method', 'PUT');
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: formData
+            }).then(async r => {
+                if (r.ok) { location.reload(); return; }
+                const d = await r.json().catch(() => ({}));
+                toastr.error(d.message || 'Gagal memperbarui surat keluar');
+            });
+        });
+
+        // Send action
+        document.querySelectorAll('.btn-send').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const tanggal = prompt('Tanggal kirim (YYYY-MM-DD):');
+                if (!tanggal) return;
+                const media = prompt('Media pengiriman (opsional):') || '';
+                const fd = new FormData();
+                fd.append('tanggal_kirim', tanggal);
+                fd.append('media_pengiriman', media);
+                fetch(`{{ url('/surat-keluar') }}/${id}/send`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: fd
+                }).then(async r => {
+                    if (r.ok) { location.reload(); return; }
+                    const d = await r.json().catch(() => ({}));
+                    toastr.error(d.message || 'Gagal mengirim surat');
+                });
+            });
+        });
+    </script>
+
+    @if (session('success'))
+        <script>
+            (function() {
+                var msg = @json(session('success'));
+                if (window.toastr && toastr.success) { toastr.success(msg); } else { console.log('SUCCESS:', msg); }
+            })();
+        </script>
+    @endif
+
+    @if (session('error'))
+        <script>
+            (function() {
+                var msg = @json(session('error'));
+                if (window.toastr && toastr.error) { toastr.error(msg); } else { console.error('ERROR:', msg); }
+            })();
+        </script>
+    @endif
+@endpush

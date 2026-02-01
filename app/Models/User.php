@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use App\Models\Concerns\HasUuid;
+use App\Models\Pivots\RoleUser;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -51,7 +52,8 @@ class User extends Authenticatable
 
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Roles::class, 'role_user', 'user_id', 'role_id');
+        return $this->belongsToMany(Roles::class, 'role_user', 'user_id', 'role_id')
+            ->using(RoleUser::class);
     }
 
     public function hasPermission(string $permissionKey): bool

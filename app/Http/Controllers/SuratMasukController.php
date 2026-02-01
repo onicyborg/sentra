@@ -1,0 +1,141 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Lampiran;
+use App\Models\SuratMasuk;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+
+class SuratMasukController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware(['auth']);
+        $this->middleware('can:surat_masuk.read')->only(['index', 'show']);
+        // Use create permission as edit capability per spec
+        $this->middleware('can:surat_masuk.create')->only(['store', 'update']);
+    }
+
+    public function index()
+    {
+        $items = SuratMasuk::query()
+            ->latest('created_at')
+            ->get(['id','nomor_surat','tanggal_terima','asal_surat','pengirim','perihal','status']);
+
+        return view('surat-masuk.index', [
+            'items' => $items,
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'nomor_surat' => ['required', 'string', 'max:190'],
+            'tanggal_terima' => ['required', 'date'],
+            'asal_surat' => ['nullable', 'string', 'max:190'],
+            'pengirim' => ['nullable', 'string', 'max:190'],
+            'perihal' => ['required', 'string', 'max:255'],
+            'lampiran' => ['nullable', 'array'],
+            'lampiran.*' => ['file'],
+        ]);
+
+        DB::transaction(function () use ($validated, $request) {
+            $sm = new SuratMasuk();
+            $sm->nomor_surat = $validated['nomor_surat'];
+            $sm->tanggal_terima = $validated['tanggal_terima'];
+            $sm->asal_surat = $validated['asal_surat'] ?? null;
+            $sm->pengirim = $validated['pengirim'] ?? null;
+            $sm->perihal = $validated['perihal'];
+            $sm->status = $request->input('status', 'draft');
+            $sm->created_by = Auth::id();
+            $sm->save();
+
+            if ($request->hasFile('lampiran')) {
+                foreach ((array) $request->file('lampiran') as $file) {
+                    if (!$file) continue;
+                    $path = $file->store('lampiran/surat_masuk', 'public');
+                    Lampiran::create([
+                        'surat_masuk_id' => $sm->id,
+                        'file_path' => $path,
+                    ]);
+                }
+            }
+        });
+
+        return back()->with('success', 'Surat masuk berhasil ditambahkan');
+    }
+
+    public function show(string $id)
+    {
+        $sm = SuratMasuk::findOrFail($id);
+        $lampiran = $sm->lampiran()->get(['id','file_path']);
+
+        return response()->json([
+            'id' => $sm->id,
+            'nomor_surat' => $sm->nomor_surat,
+            'tanggal_terima' => $sm->tanggal_terima,
+            'asal_surat' => $sm->asal_surat,
+            'pengirim' => $sm->pengirim,
+            'perihal' => $sm->perihal,
+            'status' => $sm->status,
+            'editable' => in_array($sm->status, ['draft','diterima']),
+            'lampiran' => $lampiran->map(function ($l) {
+                return [
+                    'id' => $l->id,
+                    // Normalisasi: ambil hanya path dari hasil Storage::url lalu prefix dengan host saat ini
+                    'url' => (function () use ($l) {
+                        $raw = Storage::disk('public')->url($l->file_path);
+                        $path = parse_url($raw, PHP_URL_PATH) ?? $raw;
+                        return request()->getSchemeAndHttpHost() . $path;
+                    })(),
+                    'name' => basename($l->file_path),
+                ];
+            }),
+        ]);
+    }
+
+    public function update(Request $request, string $id)
+    {
+        $sm = SuratMasuk::findOrFail($id);
+        if (!in_array($sm->status, ['draft','diterima'])) {
+            return back()->with('error', 'Surat tidak dapat diedit pada status saat ini.');
+        }
+
+        $validated = $request->validate([
+            'nomor_surat' => ['required', 'string', 'max:190'],
+            'tanggal_terima' => ['required', 'date'],
+            'asal_surat' => ['nullable', 'string', 'max:190'],
+            'pengirim' => ['nullable', 'string', 'max:190'],
+            'perihal' => ['required', 'string', 'max:255'],
+            'lampiran' => ['nullable', 'array'],
+            'lampiran.*' => ['file'],
+        ]);
+
+        DB::transaction(function () use ($validated, $request, $sm) {
+            $sm->nomor_surat = $validated['nomor_surat'];
+            $sm->tanggal_terima = $validated['tanggal_terima'];
+            $sm->asal_surat = $validated['asal_surat'] ?? null;
+            $sm->pengirim = $validated['pengirim'] ?? null;
+            $sm->perihal = $validated['perihal'];
+            $sm->save();
+
+            if ($request->hasFile('lampiran')) {
+                // Tambah lampiran baru (tidak menghapus yang lama)
+                foreach ((array) $request->file('lampiran') as $file) {
+                    if (!$file) continue;
+                    $path = $file->store('lampiran/surat_masuk', 'public');
+                    Lampiran::create([
+                        'surat_masuk_id' => $sm->id,
+                        'file_path' => $path,
+                    ]);
+                }
+            }
+        });
+
+        return back()->with('success', 'Surat masuk berhasil diperbarui');
+    }
+}

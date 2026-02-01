@@ -33,7 +33,12 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
-            return redirect()->intended(route('dashboard'));
+            $user = Auth::user();
+            // Check role membership correctly (belongsToMany returns a collection)
+            $isAdminSystem = $user->roles()->where('name', 'admin_system')->exists();
+            return $isAdminSystem
+                ? redirect()->intended(route('dashboard'))
+                : redirect()->intended(route('home'));
         }
 
         throw ValidationException::withMessages([
