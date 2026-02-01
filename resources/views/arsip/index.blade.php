@@ -44,9 +44,9 @@
         </div>
     </div>
 
-    <!-- Detail Modal -->
+    <!-- Detail Modal (auto menyesuaikan surat masuk/keluar) -->
     <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Detail Arsip</h5>
@@ -54,34 +54,7 @@
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <div class="text-muted fs-7">Jenis Surat</div>
-                                <div id="d_jenis" class="fw-semibold">-</div>
-                            </div>
-                            <div class="mb-3">
-                                <div class="text-muted fs-7">Nomor Surat</div>
-                                <div id="d_nomor" class="fw-semibold">-</div>
-                            </div>
-                            <div class="mb-3">
-                                <div class="text-muted fs-7">Perihal</div>
-                                <div id="d_perihal" class="fw-semibold">-</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <div class="text-muted fs-7">Tanggal Surat</div>
-                                <div id="d_tanggal" class="fw-semibold">-</div>
-                            </div>
-                            <div class="mb-3">
-                                <div class="text-muted fs-7">Diarsipkan Pada</div>
-                                <div id="d_archived" class="fw-semibold">-</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div class="modal-body" id="archive_detail_body" style="max-height:70vh;overflow-y:auto;"></div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
                 </div>
@@ -150,28 +123,105 @@
             });
         });
 
-        // View Detail
-        document.querySelectorAll('.btn-view').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                fetch(`{{ url('/admin/arsip') }}/${id}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        document.getElementById('d_jenis').textContent = data.jenis_surat || '-';
-                        document.getElementById('d_nomor').textContent = data.nomor_surat || '-';
-                        document.getElementById('d_perihal').textContent = data.perihal || '-';
-                        document.getElementById('d_tanggal').textContent = data.tanggal_surat || '-';
-                        document.getElementById('d_archived').textContent = data.archived_at || '-';
-                    });
+        // View Detail: auto-render sesuai jenis_surat menggunakan endpoint show masing-masing
+        (function(){
+            const body = document.getElementById('archive_detail_body');
+            function badgeMasuk(status){
+                const s=(status||'').toLowerCase();
+                if (s==='draft') return '<span class="badge badge-light-secondary">Draft</span>';
+                if (s==='diterima') return '<span class="badge badge-light-info">Diterima</span>';
+                if (s==='terverifikasi') return '<span class="badge badge-light-success">Terverifikasi</span>';
+                if (s==='didisposisikan') return '<span class="badge badge-light-primary">Didisposisikan</span>';
+                if (s==='ditindaklanjuti') return '<span class="badge badge-light-success">Ditindaklanjuti</span>';
+                return `<span class="badge badge-light">${status||'-'}</span>`;
+            }
+            function badgeKeluar(status){
+                const s=(status||'').toLowerCase();
+                if (s==='draft') return '<span class="badge badge-light-secondary">Draft</span>';
+                if (s==='disahkan') return '<span class="badge badge-light-success">Disahkan</span>';
+                if (s==='terkirim') return '<span class="badge badge-light-primary">Terkirim</span>';
+                if (s==='ditolak') return '<span class="badge badge-light-danger">Ditolak</span>';
+                return `<span class="badge badge-light">${status||'-'}</span>`;
+            }
+
+            function renderMasuk(d){
+                const info = `
+                    <div class="card mb-5"><div class="card-body"><div class="row g-3">
+                        <div class="col-sm-6"><div class="text-muted fs-8">Nomor Surat</div><div class="fw-bold">${d.nomor_surat||'-'}</div></div>
+                        <div class="col-sm-6"><div class="text-muted fs-8">Tanggal Terima</div><div class="fw-bold">${(d.tanggal_terima||'').substring(0,10)}</div></div>
+                        <div class="col-sm-6"><div class="text-muted fs-8">Asal Surat</div><div class="fw-bold">${d.asal_surat||'-'}</div></div>
+                        <div class="col-sm-6"><div class="text-muted fs-8">Pengirim</div><div class="fw-bold">${d.pengirim||'-'}</div></div>
+                        <div class="col-12"><div class="text-muted fs-8">Perihal</div><div class="fw-bold">${d.perihal||'-'}</div></div>
+                        <div class="col-sm-6"><div class="text-muted fs-8">Status</div><div class="fw-bold">${badgeMasuk(d.status)}</div></div>
+                        <div class="col-sm-6"><div class="text-muted fs-8">Dibuat oleh</div><div class="fw-bold">${d.created_by_name||'-'}</div></div>
+                    </div></div></div>`;
+                const f=d.flow||{};
+                const timeline = `
+                    <div class="timeline">
+                        <div class="timeline-item"><div class="timeline-line"></div><div class="timeline-icon bg-light"><i class="bi bi-inbox"></i></div><div class="timeline-content"><div class="fw-bold">Surat Diterima</div><div class="text-muted fs-8">Tanggal terima: ${(d.tanggal_terima||'').substring(0,10)} | Pengirim: ${d.pengirim||'-'}</div></div></div>
+                        <div class="timeline-item"><div class="timeline-line"></div><div class="timeline-icon bg-light"><i class="bi bi-check-circle"></i></div><div class="timeline-content"><div class="fw-bold">Verifikasi <span class="ms-2 badge ${f.verifikasi?.status==='completed'?'badge-light-success':'badge-light-warning'}">${f.verifikasi?.status||'pending'}</span></div><div class="text-muted fs-8">Tanggal: ${f.verifikasi?.verified_at?String(f.verifikasi.verified_at).substring(0,10):'-'}</div></div></div>
+                        <div class="timeline-item"><div class="timeline-line"></div><div class="timeline-icon bg-light"><i class="bi bi-share"></i></div><div class="timeline-content"><div class="fw-bold">Disposisi <span class="ms-2 badge ${f.disposisi?.status==='completed'?'badge-light-primary':'badge-light-warning'}">${f.disposisi?.status||'pending'}</span></div><div class="text-muted fs-8">Tanggal: ${f.disposisi?.tanggal?String(f.disposisi.tanggal).substring(0,10):'-'} | Catatan: ${f.disposisi?.catatan||'-'}</div></div></div>
+                        <div class="timeline-item"><div class="timeline-line"></div><div class="timeline-icon bg-light"><i class="bi bi-clipboard-check"></i></div><div class="timeline-content"><div class="fw-bold">Tindak Lanjut <span class="ms-2 badge ${f.tindak_lanjut?.status==='completed'?'badge-light-success':'badge-light-warning'}">${f.tindak_lanjut?.status||'pending'}</span></div><div class="text-muted fs-8">Tanggal: ${f.tindak_lanjut?.tanggal?String(f.tindak_lanjut.tanggal).substring(0,10):'-'} | Deskripsi: ${f.tindak_lanjut?.deskripsi||'-'}</div></div></div>
+                        <div class="timeline-item"><div class="timeline-line"></div><div class="timeline-icon bg-light"><i class="bi bi-archive"></i></div><div class="timeline-content"><div class="fw-bold">Arsip <span class="ms-2 badge ${f.arsip?.status==='completed'?'badge-light-success':'badge-light-warning'}">${f.arsip?.status||'pending'}</span></div><div class="text-muted fs-8">Tanggal arsip: ${f.arsip?.archived_at?String(f.arsip.archived_at).substring(0,10):'-'}</div></div></div>
+                    </div>`;
+                const lampSurat = (d.lampiran_surat||[]).map(l=>`<a class="d-block" href="${l.url}" target="_blank">${l.name}</a>`).join('');
+                const lampTL = (d.lampiran_tindak_lanjut||[]).map(l=>`<a class="d-block" href="${l.url}" target="_blank">${l.name}</a>`).join('');
+                body.innerHTML = info + `<div class="card"><div class="card-body">${timeline}
+                    <div class="mt-5"><div class="fw-bold mb-2">Lampiran Surat</div>${lampSurat||'-'}</div>
+                    <div class="mt-5"><div class="fw-bold mb-2">Lampiran Tindak Lanjut</div>${lampTL||'-'}</div>
+                </div></div>`;
+            }
+            function renderKeluar(d){
+                const info = `
+                    <div class="card mb-5"><div class="card-body"><div class="row g-3">
+                        <div class="col-sm-6"><div class="text-muted fs-8">Nomor Surat</div><div class="fw-bold">${d.nomor_surat||'-'}</div></div>
+                        <div class="col-sm-6"><div class="text-muted fs-8">Tanggal Surat</div><div class="fw-bold">${(d.tanggal_surat||'').substring(0,10)}</div></div>
+                        <div class="col-sm-6"><div class="text-muted fs-8">Tujuan</div><div class="fw-bold">${d.tujuan||'-'}</div></div>
+                        <div class="col-12"><div class="text-muted fs-8">Perihal</div><div class="fw-bold">${d.perihal||'-'}</div></div>
+                        <div class="col-sm-6"><div class="text-muted fs-8">Status</div><div class="fw-bold">${badgeKeluar(d.status)}</div></div>
+                        <div class="col-sm-6"><div class="text-muted fs-8">Dibuat oleh</div><div class="fw-bold">${d.created_by_name||'-'}</div></div>
+                    </div></div></div>`;
+                const f=d.flow||{};
+                const timeline = `
+                    <div class="timeline">
+                        <div class="timeline-item"><div class="timeline-line"></div><div class="timeline-icon bg-light"><i class="bi bi-file-text"></i></div><div class="timeline-content"><div class="fw-bold">Draft Surat</div><div class="text-muted fs-8">Dibuat oleh: ${d.created_by_name||'-'} | Tanggal: ${(d.created_at||'').substring(0,10)}</div></div></div>
+                        <div class="timeline-item"><div class="timeline-line"></div><div class="timeline-icon bg-light"><i class="bi bi-person-check"></i></div><div class="timeline-content"><div class="fw-bold">Persetujuan <span class="ms-2 badge ${f.approval?.status==='completed'?'badge-light-success':(f.approval?.status==='rejected'?'badge-light-danger':'badge-light-warning')}">${f.approval?.status||'pending'}</span></div><div class="text-muted fs-8">Disetujui oleh: ${d.approved_by_name||'-'} | Tanggal: ${f.approval?.approved_at?String(f.approval.approved_at).substring(0,10):'-'}</div></div></div>
+                        <div class="timeline-item"><div class="timeline-line"></div><div class="timeline-icon bg-light"><i class="bi bi-send"></i></div><div class="timeline-content"><div class="fw-bold">Pengiriman <span class="ms-2 badge ${f.send?.status==='completed'?'badge-light-primary':'badge-light-warning'}">${f.send?.status||'pending'}</span></div><div class="text-muted fs-8">Tanggal kirim: ${f.send?.tanggal_kirim?String(f.send.tanggal_kirim).substring(0,10):'-'}</div></div></div>
+                        <div class="timeline-item"><div class="timeline-line"></div><div class="timeline-icon bg-light"><i class="bi bi-archive"></i></div><div class="timeline-content"><div class="fw-bold">Arsip <span class="ms-2 badge ${f.arsip?.status==='completed'?'badge-light-success':'badge-light-warning'}">${f.arsip?.status||'pending'}</span></div><div class="text-muted fs-8">Tanggal arsip: ${f.arsip?.archived_at?String(f.arsip.archived_at).substring(0,10):'-'}</div></div></div>
+                    </div>`;
+                const lamp = (d.lampiran||[]).map(l=>`<a class="d-block" href="${l.url}" target="_blank">${l.name}</a>`).join('');
+                body.innerHTML = info + `<div class="card"><div class="card-body">${timeline}<div class="mt-5"><div class="fw-bold mb-2">Lampiran</div>${lamp||'-'}</div></div></div>`;
+            }
+
+            document.querySelectorAll('.btn-view').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    if (body) body.innerHTML = '<div class="text-center py-10">Loading...</div>';
+                    fetch(`{{ url('/archive') }}/${id}`)
+                        .then(r => r.json())
+                        .then(meta => {
+                            const jenis = (meta.jenis_surat||'').toLowerCase();
+                            const suratId = meta.surat_id;
+                            if (!suratId) { body.innerHTML = '<div class="text-center text-danger py-10">Data tidak lengkap</div>'; return; }
+                            const endpoint = jenis === 'masuk' ? `{{ url('/surat-masuk') }}/${suratId}` : `{{ url('/surat-keluar') }}/${suratId}`;
+                            fetch(endpoint)
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (jenis === 'masuk') renderMasuk(data); else renderKeluar(data);
+                                })
+                                .catch(()=>{ body.innerHTML = '<div class="text-center text-danger py-10">Gagal memuat detail surat</div>'; });
+                        })
+                        .catch(()=>{ body.innerHTML = '<div class="text-center text-danger py-10">Gagal memuat metadata arsip</div>'; });
+                });
             });
-        });
+        })();
 
         // Restore
         const restoreForm = document.getElementById('restoreForm');
         document.querySelectorAll('.btn-restore').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
-                restoreForm.action = `{{ url('/admin/arsip') }}/${id}/restore`;
+                restoreForm.action = `{{ url('/archive') }}/${id}/restore`;
             });
         });
 
@@ -180,7 +230,7 @@
         document.querySelectorAll('.btn-delete').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
-                deleteForm.action = `{{ url('/admin/arsip') }}/${id}`;
+                deleteForm.action = `{{ url('/archive') }}/${id}`;
             });
         });
     </script>

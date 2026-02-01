@@ -21,6 +21,7 @@ class SuratKeluar extends Model
         'perihal',
         'status',
         'send_at',
+        'send_media',
         'created_by',
         'approved_by',
     ];

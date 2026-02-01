@@ -31,13 +31,22 @@ class SuratMasukController extends Controller
             ->leftJoin('arsip', function ($join) {
                 $join->on('arsip.surat_id', '=', 'surat_masuk.id')
                      ->where('arsip.jenis_surat', '=', 'masuk');
-            })
-            ->whereNull('arsip.id');
+            });
         // Untuk Kepala Dinas: tampilkan hanya diterima/terverifikasi
         if (auth()->user()?->can('surat_masuk.verify') || auth()->user()?->can('surat_masuk.distribute')) {
             $q->whereIn('status', ['diterima', 'terverifikasi']);
         }
-        $items = $q->get(['surat_masuk.id','nomor_surat','tanggal_terima','asal_surat','pengirim','perihal','status','surat_masuk.created_at']);
+        $items = $q->get([
+            'surat_masuk.id',
+            'nomor_surat',
+            'tanggal_terima',
+            'asal_surat',
+            'pengirim',
+            'perihal',
+            'status',
+            'surat_masuk.created_at',
+            DB::raw('arsip.id as archived_id'),
+        ]);
 
         // Order in PHP to avoid DB-specific raw CASE
         $priority = [
@@ -48,6 +57,11 @@ class SuratMasukController extends Controller
             'ditindaklanjuti' => 5,
         ];
         $items = $items->sort(function ($a, $b) use ($priority) {
+            // archived last
+            $aa = !empty($a->archived_id) ? 1 : 0;
+            $ba = !empty($b->archived_id) ? 1 : 0;
+            if ($aa !== $ba) return $aa <=> $ba; // non-archived first
+
             $pa = $priority[$a->status] ?? 99;
             $pb = $priority[$b->status] ?? 99;
             if ($pa === $pb) {
@@ -115,6 +129,21 @@ class SuratMasukController extends Controller
         $lampiran = $sm->lampiran()
             ->where('file_path', 'like', 'lampiran/surat_masuk/%')
             ->get(['id','file_path']);
+        $lampiranTl = $sm->lampiran()
+            ->where('file_path', 'like', 'lampiran/tindak_lanjut/%')
+            ->get(['id','file_path']);
+
+        // Flow data
+        $lastDisposisi = Disposisi::where('surat_masuk_id', $sm->id)->orderByDesc('created_at')->first();
+        $tindakLanjut = DB::table('tindak_lanjut')
+            ->where('surat_masuk_id', $sm->id)
+            ->orderByDesc('created_at')
+            ->first();
+        $arsip = DB::table('arsip')
+            ->where('jenis_surat', 'masuk')
+            ->where('surat_id', $sm->id)
+            ->first();
+        $createdByName = $sm->created_by ? DB::table('users')->where('id', $sm->created_by)->value('name') : null;
 
         return response()->json([
             'id' => $sm->id,
@@ -124,8 +153,11 @@ class SuratMasukController extends Controller
             'pengirim' => $sm->pengirim,
             'perihal' => $sm->perihal,
             'status' => $sm->status,
+            'created_by' => $sm->created_by,
+            'created_by_name' => $createdByName,
+            'created_at' => $sm->created_at,
             'editable' => in_array($sm->status, ['draft','diterima']),
-            'lampiran' => $lampiran->map(function ($l) {
+            'lampiran_surat' => $lampiran->map(function ($l) {
                 return [
                     'id' => $l->id,
                     // Normalisasi: ambil hanya path dari hasil Storage::url lalu prefix dengan host saat ini
@@ -137,6 +169,38 @@ class SuratMasukController extends Controller
                     'name' => basename($l->file_path),
                 ];
             }),
+            'lampiran_tindak_lanjut' => $lampiranTl->map(function ($l) {
+                return [
+                    'id' => $l->id,
+                    'url' => (function () use ($l) {
+                        $raw = Storage::disk('public')->url($l->file_path);
+                        $path = parse_url($raw, PHP_URL_PATH) ?? $raw;
+                        return request()->getSchemeAndHttpHost() . $path;
+                    })(),
+                    'name' => basename($l->file_path),
+                ];
+            }),
+            'flow' => [
+                'verifikasi' => [
+                    'status' => in_array($sm->status, ['terverifikasi','didisposisikan','ditindaklanjuti']) ? 'completed' : (in_array($sm->status, ['diterima']) ? 'pending' : 'pending'),
+                    'verified_at' => in_array($sm->status, ['terverifikasi','didisposisikan','ditindaklanjuti']) ? $sm->updated_at : null,
+                    'catatan' => null,
+                ],
+                'disposisi' => [
+                    'status' => in_array($sm->status, ['didisposisikan','ditindaklanjuti']) ? 'completed' : 'pending',
+                    'catatan' => $lastDisposisi->catatan ?? null,
+                    'tanggal' => $lastDisposisi->created_at ?? null,
+                ],
+                'tindak_lanjut' => [
+                    'status' => ($sm->status === 'ditindaklanjuti') ? 'completed' : 'pending',
+                    'deskripsi' => $tindakLanjut->deskripsi ?? null,
+                    'tanggal' => $tindakLanjut->created_at ?? null,
+                ],
+                'arsip' => [
+                    'status' => $arsip ? 'completed' : 'pending',
+                    'archived_at' => $arsip->archived_at ?? null,
+                ],
+            ],
         ]);
     }
 

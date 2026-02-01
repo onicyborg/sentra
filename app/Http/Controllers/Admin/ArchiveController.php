@@ -51,6 +51,7 @@ class ArchiveController extends Controller
             $payload = [
                 'id' => $row->id,
                 'jenis_surat' => 'masuk',
+                'surat_id' => $row->surat_id,
                 'nomor_surat' => $surat->nomor_surat ?? null,
                 'perihal' => $surat->perihal ?? null,
                 'tanggal_surat' => $surat->tanggal_terima ?? null,
@@ -61,6 +62,7 @@ class ArchiveController extends Controller
             $payload = [
                 'id' => $row->id,
                 'jenis_surat' => 'keluar',
+                'surat_id' => $row->surat_id,
                 'nomor_surat' => $surat->nomor_surat ?? null,
                 'perihal' => $surat->perihal ?? null,
                 'tanggal_surat' => $surat->tanggal_surat ?? null,

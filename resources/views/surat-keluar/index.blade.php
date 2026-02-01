@@ -48,6 +48,9 @@
                                     @endif
                                 </td>
                                 <td class="text-end">
+                                    <button class="btn btn-light btn-sm me-2 btn-detail-sk" title="Lihat Detail" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#detailSuratKeluarModal">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
                                     @can('surat_keluar.create')
                                     @php $editable = in_array(strtolower($it->status), ['draft', 'ditolak']); @endphp
                                     <button class="btn btn-light-primary btn-sm me-2 btn-edit {{ $editable ? '' : 'disabled' }}" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#editSuratKeluarModal">
@@ -79,6 +82,7 @@
     @include('surat-keluar.modal-edit')
     @include('surat-keluar.modal-approve')
     @include('surat-keluar.modal-send')
+    @include('surat-keluar.modal-detail')
 @endsection
 
 @push('scripts')
@@ -90,6 +94,51 @@
                 order: [[1, 'desc']],
             });
         });
+
+        // Detail modal open & render
+        (function(){
+            const body = document.getElementById('sk_detail_body');
+            function badgeSK(status){
+                const s=(status||'').toLowerCase();
+                if (s==='draft') return '<span class="badge badge-light-secondary">Draft</span>';
+                if (s==='disahkan') return '<span class="badge badge-light-success">Disahkan</span>';
+                if (s==='terkirim') return '<span class="badge badge-light-primary">Terkirim</span>';
+                if (s==='ditolak') return '<span class="badge badge-light-danger">Ditolak</span>';
+                return `<span class=\"badge badge-light\">${status||'-'}</span>`;
+            }
+            function renderDetailSK(d){
+                const info = `
+                    <div class=\"card mb-5\"><div class=\"card-body\"><div class=\"row g-3\">
+                        <div class=\"col-sm-6\"><div class=\"text-muted fs-8\">Nomor Surat</div><div class=\"fw-bold\">${d.nomor_surat||'-'}</div></div>
+                        <div class=\"col-sm-6\"><div class=\"text-muted fs-8\">Tanggal Surat</div><div class=\"fw-bold\">${(d.tanggal_surat||'').substring(0,10)}</div></div>
+                        <div class=\"col-sm-6\"><div class=\"text-muted fs-8\">Tujuan</div><div class=\"fw-bold\">${d.tujuan||'-'}</div></div>
+                        <div class=\"col-12\"><div class=\"text-muted fs-8\">Perihal</div><div class=\"fw-bold\">${d.perihal||'-'}</div></div>
+                        <div class=\"col-sm-6\"><div class=\"text-muted fs-8\">Status</div><div class=\"fw-bold\">${badgeSK(d.status)}</div></div>
+                        <div class=\"col-sm-6\"><div class=\"text-muted fs-8\">Dibuat oleh</div><div class=\"fw-bold\">${d.created_by_name||'-'}</div></div>
+                        <div class=\"col-sm-6\"><div class=\"text-muted fs-8\">Tanggal dibuat</div><div class=\"fw-bold\">${(d.created_at||'').substring(0,10)}</div></div>
+                    </div></div></div>`;
+                const f = d.flow||{};
+                const timeline = `
+                    <div class=\"timeline\">
+                        <div class=\"timeline-item\"><div class=\"timeline-line\"></div><div class=\"timeline-icon bg-light\"><i class=\"bi bi-file-text\"></i></div><div class=\"timeline-content\"><div class=\"fw-bold\">Draft Surat</div><div class=\"text-muted fs-8\">Dibuat oleh: ${d.created_by_name||'-'} | Tanggal: ${(d.created_at||'').substring(0,10)}</div></div></div>
+                        <div class=\"timeline-item\"><div class=\"timeline-line\"></div><div class=\"timeline-icon bg-light\"><i class=\"bi bi-person-check\"></i></div><div class=\"timeline-content\"><div class=\"fw-bold\">Persetujuan <span class=\"ms-2 badge ${f.approval?.status==='completed'?'badge-light-success':(f.approval?.status==='rejected'?'badge-light-danger':'badge-light-warning')}\">${f.approval?.status||'pending'}</span></div><div class=\"text-muted fs-8\">Disetujui oleh: ${d.approved_by_name||'-'} | Tanggal: ${f.approval?.approved_at?String(f.approval.approved_at).substring(0,10):'-'}</div></div></div>
+                        <div class=\"timeline-item\"><div class=\"timeline-line\"></div><div class=\"timeline-icon bg-light\"><i class=\"bi bi-send\"></i></div><div class=\"timeline-content\"><div class=\"fw-bold\">Pengiriman <span class=\"ms-2 badge ${f.send?.status==='completed'?'badge-light-primary':'badge-light-warning'}\">${f.send?.status||'pending'}</span></div><div class=\"text-muted fs-8\">Tanggal kirim: ${f.send?.tanggal_kirim?String(f.send.tanggal_kirim).substring(0,10):'-'}</div></div></div>
+                        <div class=\"timeline-item\"><div class=\"timeline-line\"></div><div class=\"timeline-icon bg-light\"><i class=\"bi bi-archive\"></i></div><div class=\"timeline-content\"><div class=\"fw-bold\">Arsip <span class=\"ms-2 badge ${f.arsip?.status==='completed'?'badge-light-success':'badge-light-warning'}\">${f.arsip?.status||'pending'}</span></div><div class=\"text-muted fs-8\">Tanggal arsip: ${f.arsip?.archived_at?String(f.arsip.archived_at).substring(0,10):'-'}</div></div></div>
+                    </div>`;
+                const lamp = (d.lampiran||[]).map(l=>`<a class=\"d-block\" href=\"${l.url}\" target=\"_blank\">${l.name}</a>`).join('');
+                if (body) body.innerHTML = info + `<div class=\"card\"><div class=\"card-body\">${timeline}<div class=\"mt-5\"><div class=\"fw-bold mb-2\">Lampiran</div>${lamp||'-'}</div></div></div>`;
+            }
+            document.querySelectorAll('.btn-detail-sk').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    if (body) body.innerHTML = '<div class="text-center py-10">Loading...</div>';
+                    fetch(`{{ url('/surat-keluar') }}/${id}`)
+                        .then(r => r.json())
+                        .then(d => renderDetailSK(d))
+                        .catch(()=>{ if (body) body.innerHTML = '<div class="text-center text-danger py-10">Gagal memuat detail</div>'; });
+                });
+            });
+        })();
 
         // Create submit via AJAX
         const createForm = document.getElementById('createSuratKeluarForm');

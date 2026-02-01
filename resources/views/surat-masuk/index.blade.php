@@ -50,6 +50,9 @@
                                     @endif
                                 </td>
                                 <td class="text-end">
+                                    <button class="btn btn-light btn-sm me-2 btn-detail" title="Lihat Detail" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#detailSuratMasukModal">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
                                     @can('surat_masuk.create')
                                     @php $editable = in_array(strtolower($it->status), ['draft','diterima']); @endphp
                                     <button class="btn btn-light-primary btn-sm me-2 btn-edit {{ $editable ? '' : 'disabled' }}" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#editSuratMasukModal">
@@ -83,6 +86,7 @@
     @include('surat-masuk.modal-edit')
     @include('surat-masuk.modal-verify')
     @include('surat-masuk.modal-disposisi')
+    @include('surat-masuk.modal-detail')
 @endsection
 
 @push('scripts')
@@ -93,6 +97,108 @@
                 ordering: true,
                 order: [[1, 'desc']], // sort by tanggal terima desc by default
             });
+
+        // Detail modal open and render
+        (function(){
+            const modalEl = document.getElementById('detailSuratMasukModal');
+            const body = document.getElementById('sm_detail_body');
+            document.querySelectorAll('.btn-detail').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    body.innerHTML = '<div class="text-center py-10">Loading...</div>';
+                    fetch(`{{ url('/surat-masuk') }}/${id}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            renderDetail(data);
+                        }).catch(()=>{ body.innerHTML = '<div class="text-center text-danger py-10">Gagal memuat detail</div>'; });
+                });
+            });
+
+            function badge(status){
+                const s = (status||'').toLowerCase();
+                if (s==='draft') return '<span class="badge badge-light-secondary">Draft</span>';
+                if (s==='diterima') return '<span class="badge badge-light-info">Diterima</span>';
+                if (s==='terverifikasi') return '<span class="badge badge-light-success">Terverifikasi</span>';
+                if (s==='didisposisikan') return '<span class="badge badge-light-primary">Didisposisikan</span>';
+                if (s==='ditindaklanjuti') return '<span class="badge badge-light-success">Ditindaklanjuti</span>';
+                return `<span class="badge badge-light">${status||'-'}</span>`;
+            }
+            function renderDetail(d){
+                const info = `
+                    <div class="card mb-5">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-sm-6"><div class="text-muted fs-8">Nomor Surat</div><div class="fw-bold">${d.nomor_surat||'-'}</div></div>
+                                <div class="col-sm-6"><div class="text-muted fs-8">Tanggal Terima</div><div class="fw-bold">${(d.tanggal_terima||'').substring(0,10)}</div></div>
+                                <div class="col-sm-6"><div class="text-muted fs-8">Asal Surat</div><div class="fw-bold">${d.asal_surat||'-'}</div></div>
+                                <div class="col-sm-6"><div class="text-muted fs-8">Pengirim</div><div class="fw-bold">${d.pengirim||'-'}</div></div>
+                                <div class="col-12"><div class="text-muted fs-8">Perihal</div><div class="fw-bold">${d.perihal||'-'}</div></div>
+                                <div class="col-sm-6"><div class="text-muted fs-8">Status</div><div class="fw-bold">${badge(d.status)}</div></div>
+                                <div class="col-sm-6"><div class="text-muted fs-8">Dibuat oleh</div><div class="fw-bold">${d.created_by_name||'-'}</div></div>
+                                <div class="col-sm-6"><div class="text-muted fs-8">Tanggal dibuat</div><div class="fw-bold">${(d.created_at||'').substring(0,10)}</div></div>
+                            </div>
+                        </div>
+                    </div>`;
+
+                const flow = d.flow||{};
+                const timeline = `
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-line"></div>
+                            <div class="timeline-icon bg-light"><i class="bi bi-inbox"></i></div>
+                            <div class="timeline-content">
+                                <div class="fw-bold">Surat Diterima</div>
+                                <div class="text-muted fs-8">Tanggal terima: ${(d.tanggal_terima||'').substring(0,10)} | Pengirim: ${d.pengirim||'-'}</div>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-line"></div>
+                            <div class="timeline-icon bg-light"><i class="bi bi-check-circle"></i></div>
+                            <div class="timeline-content">
+                                <div class="fw-bold">Verifikasi <span class="ms-2 badge ${flow.verifikasi?.status==='completed'?'badge-light-success':'badge-light-warning'}">${flow.verifikasi?.status||'pending'}</span></div>
+                                <div class="text-muted fs-8">Tanggal: ${flow.verifikasi?.verified_at ? String(flow.verifikasi.verified_at).substring(0,10) : '-'}</div>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-line"></div>
+                            <div class="timeline-icon bg-light"><i class="bi bi-share"></i></div>
+                            <div class="timeline-content">
+                                <div class="fw-bold">Disposisi <span class="ms-2 badge ${flow.disposisi?.status==='completed'?'badge-light-primary':'badge-light-warning'}">${flow.disposisi?.status||'pending'}</span></div>
+                                <div class="text-muted fs-8">Tanggal: ${flow.disposisi?.tanggal ? String(flow.disposisi.tanggal).substring(0,10) : '-'} | Catatan: ${flow.disposisi?.catatan||'-'}</div>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-line"></div>
+                            <div class="timeline-icon bg-light"><i class="bi bi-clipboard-check"></i></div>
+                            <div class="timeline-content">
+                                <div class="fw-bold">Tindak Lanjut <span class="ms-2 badge ${flow.tindak_lanjut?.status==='completed'?'badge-light-success':'badge-light-warning'}">${flow.tindak_lanjut?.status||'pending'}</span></div>
+                                <div class="text-muted fs-8">Tanggal: ${flow.tindak_lanjut?.tanggal ? String(flow.tindak_lanjut.tanggal).substring(0,10) : '-'} | Deskripsi: ${flow.tindak_lanjut?.deskripsi||'-'}</div>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-line"></div>
+                            <div class="timeline-icon bg-light"><i class="bi bi-archive"></i></div>
+                            <div class="timeline-content">
+                                <div class="fw-bold">Arsip <span class="ms-2 badge ${flow.arsip?.status==='completed'?'badge-light-success':'badge-light-warning'}">${flow.arsip?.status||'pending'}</span></div>
+                                <div class="text-muted fs-8">Tanggal arsip: ${flow.arsip?.archived_at ? String(flow.arsip.archived_at).substring(0,10) : '-'}</div>
+                            </div>
+                        </div>
+                    </div>`;
+
+                const lampSurat = (d.lampiran_surat||[]).map(l=>`<a class="d-block" href="${l.url}" target="_blank">${l.name}</a>`).join('');
+                const lampTL = (d.lampiran_tindak_lanjut||[]).map(l=>`<a class="d-block" href="${l.url}" target="_blank">${l.name}</a>`).join('');
+                body.innerHTML = info + `<div class="card"><div class="card-body">${timeline}
+                    <div class="mt-5">
+                        <div class="fw-bold mb-2">Lampiran Surat</div>
+                        ${lampSurat || '-'}
+                    </div>
+                    <div class="mt-5">
+                        <div class="fw-bold mb-2">Lampiran Tindak Lanjut</div>
+                        ${lampTL || '-'}
+                    </div>
+                </div></div>`;
+            }
+        })();
         });
 
         // Create submit via AJAX

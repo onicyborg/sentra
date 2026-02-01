@@ -45,12 +45,20 @@ class SuratKeluarController extends Controller
             ->leftJoin('arsip', function ($join) {
                 $join->on('arsip.surat_id', '=', 'surat_keluar.id')
                      ->where('arsip.jenis_surat', '=', 'keluar');
-            })
-            ->whereNull('arsip.id');
+            });
         if (auth()->user()?->can('surat_keluar.approve')) {
             $q->whereIn('status', ['draft', 'ditolak']);
         }
-        $items = $q->get(['surat_keluar.id','nomor_surat','tanggal_surat','tujuan','perihal','status','surat_keluar.created_at']);
+        $items = $q->get([
+            'surat_keluar.id',
+            'nomor_surat',
+            'tanggal_surat',
+            'tujuan',
+            'perihal',
+            'status',
+            'surat_keluar.created_at',
+            DB::raw('arsip.id as archived_id'),
+        ]);
 
         // Order in PHP to avoid DB-specific raw CASE
         $priority = [
@@ -59,9 +67,16 @@ class SuratKeluarController extends Controller
             'terkirim' => 3,
         ];
         $items = $items->sort(function ($a, $b) use ($priority) {
+            // archived last
+            $aa = !empty($a->archived_id) ? 1 : 0;
+            $ba = !empty($b->archived_id) ? 1 : 0;
+            if ($aa !== $ba) return $aa <=> $ba; // non-archived first
+
+            // then by status priority
             $pa = $priority[$a->status] ?? 99;
             $pb = $priority[$b->status] ?? 99;
             if ($pa === $pb) {
+                // then created_at desc
                 return ($b->created_at <=> $a->created_at);
             }
             return $pa <=> $pb;
@@ -122,6 +137,14 @@ class SuratKeluarController extends Controller
         $sk = SuratKeluar::findOrFail($id);
         $lampiran = $sk->lampiran()->get(['id','file_path']);
 
+        // Enrich for detail modal
+        $createdByName = $sk->created_by ? DB::table('users')->where('id', $sk->created_by)->value('name') : null;
+        $approvedByName = $sk->approved_by ? DB::table('users')->where('id', $sk->approved_by)->value('name') : null;
+        $arsip = DB::table('arsip')
+            ->where('jenis_surat', 'keluar')
+            ->where('surat_id', $sk->id)
+            ->first();
+
         return response()->json([
             'id' => $sk->id,
             'nomor_surat' => $sk->nomor_surat,
@@ -129,6 +152,11 @@ class SuratKeluarController extends Controller
             'tujuan' => $sk->tujuan,
             'perihal' => $sk->perihal,
             'status' => $sk->status,
+            'created_by' => $sk->created_by,
+            'created_by_name' => $createdByName,
+            'created_at' => $sk->created_at,
+            'approved_by' => $sk->approved_by,
+            'approved_by_name' => $approvedByName,
             'editable' => in_array($sk->status, ['draft','ditolak']),
             'sendable' => ($sk->status === 'disahkan'),
             'lampiran' => $lampiran->map(function ($l) {
@@ -140,6 +168,28 @@ class SuratKeluarController extends Controller
                     'name' => basename($l->file_path),
                 ];
             }),
+            'flow' => [
+                'draft' => [
+                    'status' => 'completed',
+                    'created_by' => $createdByName,
+                    'created_at' => $sk->created_at,
+                ],
+                'approval' => [
+                    'status' => $sk->approved_at != null ? 'completed' : 'pending',
+                    'approved_by' => $approvedByName,
+                    'approved_at' => $sk->approved_at,
+                    'catatan' => $sk->approved_note,
+                ],
+                'send' => [
+                    'status' => ($sk->status === 'terkirim') ? 'completed' : 'pending',
+                    'tanggal_kirim' => $sk->send_at,
+                    'media_pengiriman' => $sk->send_media ? $sk->send_media : null,
+                ],
+                'arsip' => [
+                    'status' => $arsip ? 'completed' : 'pending',
+                    'archived_at' => $arsip->archived_at ?? null,
+                ],
+            ],
         ]);
     }
 
@@ -194,9 +244,10 @@ class SuratKeluarController extends Controller
             'media_pengiriman' => ['nullable','string','max:190'],
         ]);
 
-        DB::transaction(function () use ($sk) {
+        DB::transaction(function () use ($validated, $sk) {
             $sk->status = 'terkirim';
-            // Catat tanggal_kirim & media bila ada kolomnya; jika belum ada, bisa di-log/abaikan
+            $sk->send_at = $validated['tanggal_kirim'];
+            $sk->send_media = $validated['media_pengiriman'] ?? null;
             $sk->save();
 
             // Auto-archive Surat Keluar (status final)
@@ -242,6 +293,9 @@ class SuratKeluarController extends Controller
                 $sk->status = 'ditolak';
                 $sk->approved_by = Auth::id();
             }
+            // Store approval meta
+            $sk->approved_at = now();
+            $sk->approved_note = $validated['catatan'] ?? null;
             $sk->save();
         });
 
