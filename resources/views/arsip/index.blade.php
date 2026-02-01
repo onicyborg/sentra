@@ -35,14 +35,6 @@
                                         <i class="bi bi-eye"></i>
                                     </button>
                                     @endcan
-                                    @can('archive.manage')
-                                    <button class="btn btn-light-warning btn-sm me-2 btn-restore" data-id="{{ $a->id }}" data-bs-toggle="modal" data-bs-target="#confirmRestoreModal">
-                                        <i class="bi bi-arrow-counterclockwise"></i>
-                                    </button>
-                                    <button class="btn btn-light-danger btn-sm btn-delete" data-id="{{ $a->id }}" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endcan
                                 </td>
                             </tr>
                         @endforeach

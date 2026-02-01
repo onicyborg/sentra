@@ -51,16 +51,17 @@ Route::middleware('auth')->group(function () {
         Route::resource('permissions', AdminPermissionController::class)
             ->only(['index', 'store', 'show', 'update', 'destroy']);
 
-        // Arsip (Global)
-        Route::get('/archive', [AdminArchiveController::class, 'index'])->name('admin.arsip.index');
-        Route::get('/archive/{id}', [AdminArchiveController::class, 'show'])->name('admin.arsip.show');
-        Route::post('/archive/{id}/restore', [AdminArchiveController::class, 'restore'])->name('admin.arsip.restore');
-        Route::delete('/archive/{id}', [AdminArchiveController::class, 'destroy'])->name('admin.arsip.destroy');
 
         // Activity Logs
         Route::get('/activity-logs', [AdminActivityLogController::class, 'index'])->name('admin.activity-logs.index');
         Route::get('/activity-logs/{id}', [AdminActivityLogController::class, 'show'])->name('admin.activity-logs.show');
     });
+
+    // Arsip (Global)
+    Route::get('/archive', [AdminArchiveController::class, 'index'])->name('admin.arsip.index');
+    Route::get('/archive/{id}', [AdminArchiveController::class, 'show'])->name('admin.arsip.show');
+    Route::post('/archive/{id}/restore', [AdminArchiveController::class, 'restore'])->name('admin.arsip.restore');
+    Route::delete('/archive/{id}', [AdminArchiveController::class, 'destroy'])->name('admin.arsip.destroy');
 
     // Non-admin: Surat Masuk
     Route::prefix('surat-masuk')->group(function () {

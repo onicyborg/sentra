@@ -12,10 +12,6 @@
                 </div>
                 <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-5">
-                        <label class="form-label">Unit Kerja</label>
-                        <input type="text" class="form-control" name="unit" required>
-                    </div>
-                    <div class="mb-5">
                         <label class="form-label">Deskripsi Tindak Lanjut</label>
                         <textarea class="form-control" name="deskripsi" id="tl_deskripsi" rows="4" required></textarea>
                     </div>

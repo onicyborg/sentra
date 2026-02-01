@@ -27,12 +27,25 @@ class SuratMasukController extends Controller
 
     public function index()
     {
-        $q = SuratMasuk::query()->latest('created_at');
+        $q = SuratMasuk::query()
+            ->leftJoin('arsip', function ($join) {
+                $join->on('arsip.surat_id', '=', 'surat_masuk.id')
+                     ->where('arsip.jenis_surat', '=', 'masuk');
+            })
+            ->whereNull('arsip.id');
         // Untuk Kepala Dinas: tampilkan hanya diterima/terverifikasi
         if (auth()->user()?->can('surat_masuk.verify') || auth()->user()?->can('surat_masuk.distribute')) {
             $q->whereIn('status', ['diterima', 'terverifikasi']);
         }
-        $items = $q->get(['id','nomor_surat','tanggal_terima','asal_surat','pengirim','perihal','status']);
+        $q->orderByRaw("CASE status
+            WHEN 'draft' THEN 1
+            WHEN 'diterima' THEN 2
+            WHEN 'terverifikasi' THEN 3
+            WHEN 'didisposisikan' THEN 4
+            WHEN 'ditindaklanjuti' THEN 5
+            ELSE 6 END")
+          ->orderByDesc('surat_masuk.created_at');
+        $items = $q->get(['surat_masuk.id','nomor_surat','tanggal_terima','asal_surat','pengirim','perihal','status']);
 
         return view('surat-masuk.index', [
             'items' => $items,

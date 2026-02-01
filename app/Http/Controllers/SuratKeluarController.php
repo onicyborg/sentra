@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Services\NotificationService;
+use Illuminate\Support\Str;
 
 class SuratKeluarController extends Controller
 {
@@ -21,13 +22,41 @@ class SuratKeluarController extends Controller
         $this->middleware('can:surat_keluar.approve')->only(['approve']);
     }
 
+    private function autoArchiveSuratKeluar(SuratKeluar $sk): void
+    {
+        // Hindari duplikasi arsip
+        $exists = DB::table('arsip')
+            ->where('jenis_surat', 'keluar')
+            ->where('surat_id', $sk->id)
+            ->exists();
+        if ($exists) return;
+
+        DB::table('arsip')->insert([
+            'id' => (string) Str::uuid(),
+            'jenis_surat' => 'keluar',
+            'surat_id' => $sk->id,
+            'archived_at' => now(),
+        ]);
+    }
+
     public function index()
     {
-        $q = SuratKeluar::query()->latest('created_at');
+        $q = SuratKeluar::query()
+            ->leftJoin('arsip', function ($join) {
+                $join->on('arsip.surat_id', '=', 'surat_keluar.id')
+                     ->where('arsip.jenis_surat', '=', 'keluar');
+            })
+            ->whereNull('arsip.id');
         if (auth()->user()?->can('surat_keluar.approve')) {
             $q->whereIn('status', ['draft', 'ditolak']);
         }
-        $items = $q->get(['id','nomor_surat','tanggal_surat','tujuan','perihal','status']);
+        $q->orderByRaw("CASE status
+            WHEN 'draft' THEN 1
+            WHEN 'disahkan' THEN 2
+            WHEN 'terkirim' THEN 3
+            ELSE 4 END")
+          ->orderByDesc('surat_keluar.created_at');
+        $items = $q->get(['surat_keluar.id','nomor_surat','tanggal_surat','tujuan','perihal','status']);
 
         return view('surat-keluar.index', [
             'items' => $items,
@@ -156,9 +185,14 @@ class SuratKeluarController extends Controller
             'media_pengiriman' => ['nullable','string','max:190'],
         ]);
 
-        $sk->status = 'terkirim';
-        // Catat tanggal_kirim & media bila ada kolomnya; jika belum ada, bisa di-log/abaikan
-        $sk->save();
+        DB::transaction(function () use ($sk) {
+            $sk->status = 'terkirim';
+            // Catat tanggal_kirim & media bila ada kolomnya; jika belum ada, bisa di-log/abaikan
+            $sk->save();
+
+            // Auto-archive Surat Keluar (status final)
+            $this->autoArchiveSuratKeluar($sk);
+        });
 
         // Event: surat_keluar.sent -> to created_by and permission surat_keluar.approve
         try {

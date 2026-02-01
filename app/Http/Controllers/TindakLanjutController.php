@@ -50,7 +50,6 @@ class TindakLanjutController extends Controller
 
         $validated = $request->validate([
             'deskripsi' => ['required','string'],
-            'unit' => ['required','string'],
             'lampiran' => ['nullable','array'],
             'lampiran.*' => ['file'],
         ]);
@@ -60,9 +59,8 @@ class TindakLanjutController extends Controller
             DB::table('tindak_lanjut')->insert([
                 'id' => (string) \Str::uuid(),
                 'surat_masuk_id' => $sm->id,
-                'unit' => $validated['unit'],
+                'unit' => $sm->disposisi->first()->ke_unit,
                 'deskripsi' => $validated['deskripsi'],
-                'created_at' => now(),
             ]);
 
             // Simpan lampiran (opsional) ke tabel lampiran dengan surat_masuk_id
@@ -80,6 +78,9 @@ class TindakLanjutController extends Controller
             // Update status surat
             $sm->status = 'ditindaklanjuti';
             $sm->save();
+
+            // Auto-archive Surat Masuk (status final)
+            $this->autoArchiveSuratMasuk($sm);
 
             // Event: surat_masuk.followed_up
             try {
@@ -99,5 +100,22 @@ class TindakLanjutController extends Controller
         });
 
         return back()->with('success', 'Tindak lanjut berhasil disimpan');
+    }
+
+    private function autoArchiveSuratMasuk(SuratMasuk $sm): void
+    {
+        // Hindari duplikasi arsip
+        $exists = DB::table('arsip')
+            ->where('jenis_surat', 'masuk')
+            ->where('surat_id', $sm->id)
+            ->exists();
+        if ($exists) return;
+
+        DB::table('arsip')->insert([
+            'id' => (string) Str::uuid(),
+            'jenis_surat' => 'masuk',
+            'surat_id' => $sm->id,
+            'archived_at' => now(),
+        ]);
     }
 }

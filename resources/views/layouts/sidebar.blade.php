@@ -170,7 +170,7 @@
 
                 @can('archive.read')
                     <div class="menu-item">
-                        <a class="menu-link" href="{{ url('/arsip') }}">
+                        <a class="menu-link" href="{{ url('/archive') }}">
                             <span class="menu-icon">
                                 <i class="bi bi-archive fs-2"></i>
                             </span>
