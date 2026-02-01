@@ -6,6 +6,7 @@
             <form id="editSuratMasukForm" method="POST" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="_method" value="PUT">
+                <input type="hidden" name="status" id="e_status" value="draft">
 
                 <div class="modal-header">
                     <h5 class="modal-title">Edit Surat Masuk</h5>
@@ -120,11 +121,8 @@
                             data-bs-dismiss="modal">
                         Batal
                     </button>
-                    <button type="submit"
-                            class="btn btn-primary"
-                            id="btnUpdateSuratMasuk">
-                        Perbarui
-                    </button>
+                    <button type="button" class="btn btn-secondary" id="btnUpdateSave">Simpan (Draft)</button>
+                    <button type="button" class="btn btn-primary" id="btnUpdateSubmit">Submit (Diterima)</button>
                 </div>
 
             </form>

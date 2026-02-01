@@ -8,6 +8,7 @@
                   enctype="multipart/form-data"
                   action="{{ route('surat-masuk.store') }}">
                 @csrf
+                <input type="hidden" name="status" id="c_status" value="draft">
 
                 <div class="modal-header">
                     <h5 class="modal-title">Tambah Surat Masuk</h5>
@@ -110,9 +111,8 @@
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">
                         Batal
                     </button>
-                    <button type="submit" class="btn btn-primary">
-                        Simpan
-                    </button>
+                    <button type="button" class="btn btn-secondary" id="btnCreateSave">Simpan (Draft)</button>
+                    <button type="button" class="btn btn-primary" id="btnCreateSubmit">Submit (Diterima)</button>
                 </div>
 
             </form>

@@ -66,6 +66,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/', [SuratMasukController::class, 'store'])->name('surat-masuk.store');
         Route::get('/{id}', [SuratMasukController::class, 'show'])->name('surat-masuk.show');
         Route::put('/{id}', [SuratMasukController::class, 'update'])->name('surat-masuk.update');
+        Route::post('/{id}/verify', [SuratMasukController::class, 'verify'])->name('surat-masuk.verify');
+        Route::post('/{id}/disposisi', [SuratMasukController::class, 'distribute'])->name('surat-masuk.distribute');
     });
 
     // Non-admin: Surat Keluar

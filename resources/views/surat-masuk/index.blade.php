@@ -24,7 +24,7 @@
                             <th>Pengirim</th>
                             <th>Perihal</th>
                             <th>Status</th>
-                            <th class="text-end w-150px">Action</th>
+                            <th class="text-end w-250px">Action</th>
                         </tr>
                     </thead>
                     <tbody class="text-gray-700 fw-semibold">
@@ -56,6 +56,20 @@
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
                                     @endcan
+
+                                    @can('surat_masuk.verify')
+                                    @php $verifiable = strtolower($it->status) === 'diterima'; @endphp
+                                    <button class="btn btn-light-success btn-sm me-2 btn-verify {{ $verifiable ? '' : 'disabled' }}" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#verifySuratMasukModal">
+                                        <i class="bi bi-check2-circle"></i>
+                                    </button>
+                                    @endcan
+
+                                    @can('surat_masuk.distribute')
+                                    @php $distributable = strtolower($it->status) === 'terverifikasi'; @endphp
+                                    <button class="btn btn-light-info btn-sm btn-disposisi {{ $distributable ? '' : 'disabled' }}" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#disposisiSuratMasukModal">
+                                        <i class="bi bi-share"></i>
+                                    </button>
+                                    @endcan
                                 </td>
                             </tr>
                         @endforeach
@@ -67,6 +81,8 @@
 
     @include('surat-masuk.modal-create')
     @include('surat-masuk.modal-edit')
+    @include('surat-masuk.modal-verify')
+    @include('surat-masuk.modal-disposisi')
 @endsection
 
 @push('scripts')
@@ -81,6 +97,14 @@
 
         // Create submit via AJAX
         const createForm = document.getElementById('createSuratMasukForm');
+        // Save/Submit buttons (create)
+        (function() {
+            const btnSave = document.getElementById('btnCreateSave');
+            const btnSubmit = document.getElementById('btnCreateSubmit');
+            const statusInput = document.getElementById('c_status');
+            btnSave?.addEventListener('click', () => { if (statusInput) statusInput.value = 'draft'; createForm?.requestSubmit(); });
+            btnSubmit?.addEventListener('click', () => { if (statusInput) statusInput.value = 'diterima'; createForm?.requestSubmit(); });
+        })();
         // Dropzone wiring for create modal
         (function() {
             const dz = document.getElementById('c_dropzone');
@@ -161,6 +185,14 @@
 
         // Edit open & submit via AJAX
         const editForm = document.getElementById('editSuratMasukForm');
+        // Save/Submit buttons (edit)
+        (function() {
+            const btnSave = document.getElementById('btnUpdateSave');
+            const btnSubmit = document.getElementById('btnUpdateSubmit');
+            const statusInput = document.getElementById('e_status');
+            btnSave?.addEventListener('click', () => { if (statusInput) statusInput.value = 'draft'; editForm?.requestSubmit(); });
+            btnSubmit?.addEventListener('click', () => { if (statusInput) statusInput.value = 'diterima'; editForm?.requestSubmit(); });
+        })();
         // Dropzone wiring for edit modal
         (function() {
             const dz = document.getElementById('e_dropzone');
@@ -267,6 +299,52 @@
                         // set submit button state
                         document.getElementById('btnUpdateSuratMasuk').disabled = !editable;
                     });
+            });
+        });
+
+        // Verify modal open & submit
+        const verifyForm = document.getElementById('verifySuratMasukForm');
+        document.querySelectorAll('.btn-verify').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                if (verifyForm) verifyForm.action = `{{ url('/surat-masuk') }}/${id}/verify`;
+            });
+        });
+        verifyForm?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const url = verifyForm.action;
+            const fd = new FormData(verifyForm);
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: fd
+            }).then(async r => {
+                if (r.ok) { location.reload(); return; }
+                const d = await r.json().catch(() => ({}));
+                toastr.error(d.message || 'Gagal memverifikasi surat');
+            });
+        });
+
+        // Disposisi modal open & submit
+        const disposisiForm = document.getElementById('disposisiSuratMasukForm');
+        document.querySelectorAll('.btn-disposisi').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                if (disposisiForm) disposisiForm.action = `{{ url('/surat-masuk') }}/${id}/disposisi`;
+            });
+        });
+        disposisiForm?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const url = disposisiForm.action;
+            const fd = new FormData(disposisiForm);
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: fd
+            }).then(async r => {
+                if (r.ok) { location.reload(); return; }
+                const d = await r.json().catch(() => ({}));
+                toastr.error(d.message || 'Gagal mendisposisikan surat');
             });
         });
 

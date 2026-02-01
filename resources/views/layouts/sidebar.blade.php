@@ -126,7 +126,7 @@
                     </div>
                 </div>
 
-                @canany(['surat_masuk.create', 'surat_masuk.read'])
+                @canany(['surat_masuk.create', 'surat_masuk.read', 'surat_masuk.distribute', 'surat_masuk.verify'])
                     <div class="menu-item">
                         <a class="menu-link" href="{{ url('/surat-masuk') }}">
                             <span class="menu-icon">

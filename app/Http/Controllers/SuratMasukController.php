@@ -18,13 +18,19 @@ class SuratMasukController extends Controller
         $this->middleware('can:surat_masuk.read')->only(['index', 'show']);
         // Use create permission as edit capability per spec
         $this->middleware('can:surat_masuk.create')->only(['store', 'update']);
+        // Kepala Dinas capabilities
+        $this->middleware('can:surat_masuk.verify')->only(['verify']);
+        $this->middleware('can:surat_masuk.distribute')->only(['distribute']);
     }
 
     public function index()
     {
-        $items = SuratMasuk::query()
-            ->latest('created_at')
-            ->get(['id','nomor_surat','tanggal_terima','asal_surat','pengirim','perihal','status']);
+        $q = SuratMasuk::query()->latest('created_at');
+        // Untuk Kepala Dinas: tampilkan hanya diterima/terverifikasi
+        if (auth()->user()?->can('surat_masuk.verify') || auth()->user()?->can('surat_masuk.distribute')) {
+            $q->whereIn('status', ['diterima', 'terverifikasi']);
+        }
+        $items = $q->get(['id','nomor_surat','tanggal_terima','asal_surat','pengirim','perihal','status']);
 
         return view('surat-masuk.index', [
             'items' => $items,
@@ -121,6 +127,7 @@ class SuratMasukController extends Controller
             $sm->asal_surat = $validated['asal_surat'] ?? null;
             $sm->pengirim = $validated['pengirim'] ?? null;
             $sm->perihal = $validated['perihal'];
+            $sm->status = $request->input('status', $sm->status);
             $sm->save();
 
             if ($request->hasFile('lampiran')) {
@@ -137,5 +144,54 @@ class SuratMasukController extends Controller
         });
 
         return back()->with('success', 'Surat masuk berhasil diperbarui');
+    }
+
+    public function verify(Request $request, string $id)
+    {
+        $sm = SuratMasuk::findOrFail($id);
+        // Hanya boleh verifikasi jika status 'diterima'
+        if ($sm->status !== 'diterima') {
+            return back()->with('error', 'Surat tidak dapat diverifikasi pada status saat ini.');
+        }
+
+        $validated = $request->validate([
+            'catatan' => ['nullable','string','max:1000'],
+        ]);
+
+        DB::transaction(function () use ($sm) {
+            $sm->status = 'terverifikasi';
+            $sm->save();
+            // Activity log assumed handled globally if enabled
+        });
+
+        return back()->with('success', 'Surat masuk berhasil diverifikasi');
+    }
+
+    public function distribute(Request $request, string $id)
+    {
+        $sm = SuratMasuk::findOrFail($id);
+        // Hanya boleh disposisi jika sudah terverifikasi
+        if ($sm->status !== 'terverifikasi') {
+            return back()->with('error', 'Surat belum terverifikasi, tidak dapat didisposisikan.');
+        }
+
+        $validated = $request->validate([
+            'ke_unit' => ['required','string','max:190'],
+            'catatan' => ['nullable','string','max:1000'],
+        ]);
+
+        DB::transaction(function () use ($validated, $sm) {
+            \App\Models\Disposisi::create([
+                'surat_masuk_id' => $sm->id,
+                'dari_user' => auth()->id(),
+                'ke_unit' => $validated['ke_unit'],
+                'catatan' => $validated['catatan'] ?? null,
+                'status' => 'baru',
+            ]);
+            $sm->status = 'didisposisikan';
+            $sm->save();
+        });
+
+        return back()->with('success', 'Surat masuk berhasil didisposisikan');
     }
 }

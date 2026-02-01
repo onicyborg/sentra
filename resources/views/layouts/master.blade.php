@@ -112,7 +112,7 @@
                                         {{ Auth::user()->name ?? 'User' }}
                                     </span>
                                     <span class="text-muted fs-8 text-uppercase">
-                                        {{ Auth::user()->role ?? '-' }}
+                                        {{ Auth::user()->roles->pluck('description')->join(', ') ?: '-' }}
                                     </span>
                                 </div>
 

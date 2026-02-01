@@ -12,8 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('disposisi', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+            $table->uuid('id')->primary();
+            $table->uuid('surat_masuk_id');
+            $table->uuid('dari_user');
+            $table->string('ke_unit');
+            $table->text('catatan')->nullable();
+            $table->string('status');
+            $table->timestamp('created_at')->useCurrent();
+
+            $table->foreign('surat_masuk_id')->references('id')->on('surat_masuk')->cascadeOnDelete();
+            $table->foreign('dari_user')->references('id')->on('users');
         });
     }
 
