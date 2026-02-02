@@ -68,7 +68,7 @@
                         </tr>
                     </thead>
                     <tbody class="text-gray-700 fw-semibold">
-                        @forelse ($arsip as $a)
+                        @foreach ($arsip as $a)
                             <tr>
                                 <td class="text-capitalize">{{ $a->jenis_surat }}</td>
                                 <td>{{ $a->nomor_surat ?? '-' }}</td>
@@ -82,9 +82,7 @@
                                     </button>
                                 </td>
                             </tr>
-                        @empty
-                            <tr><td colspan="7" class="text-center text-muted">Tidak ada data</td></tr>
-                        @endforelse
+                        @endforeach
                     </tbody>
                 </table>
             </div>
@@ -116,6 +114,9 @@
         $('#arsip_search_table').DataTable({
             pageLength: 10,
             ordering: true,
+            language: {
+                emptyTable: 'Tidak ada data'
+            }
         });
     });
 

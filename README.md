@@ -150,14 +150,19 @@ Jika Anda melakukan deploy pertama kali atau berpindah environment:
 # Membuat symlink storage publik
 php artisan storage:link
 ```
+### 7️⃣ Jalankan Seeder
 
-### 7️⃣ Setup Storage Link
+```bash
+php artisan db:seed
+```
+
+### 8️⃣ Setup Storage Link
 
 ```bash
 php artisan storage:link
 ```
 
-### 8️⃣ Jalankan Aplikasi
+### 9️⃣ Jalankan Aplikasi
 
 ```bash
 php artisan serve
