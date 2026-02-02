@@ -195,6 +195,116 @@ Catatan:
 - Urutan tampilan list disortir di sisi PHP berdasarkan prioritas status; item yang sudah diarsip ditampilkan di bagian bawah.
 
 
+## 🔄 Flow Sistem – Surat Masuk (SENTRA)
+
+Dokumen ini menjelaskan alur lengkap proses Surat Masuk pada sistem SENTRA berdasarkan role dan permission aktual yang diterapkan.
+
+Tujuan flow:
+- Memastikan pemisahan wewenang
+- Menjaga keamanan berbasis role & permission
+- Mendukung audit trail
+- Selaras dengan proses administrasi pemerintahan
+
+### 👥 Role yang Terlibat
+
+| Role | Deskripsi |
+|---|---|
+| `staf_administrasi` | Petugas penerima dan pencatat surat |
+| `kepala_dinas` | Pejabat verifikator dan pemberi disposisi |
+| `unit_kerja` | Pelaksana tindak lanjut surat |
+| `arsiparis` | Pengelola arsip surat |
+| `admin_system` | Administrator sistem (non-operasional surat) |
+
+---
+
+### 🟢 Step 1 – Penerimaan Surat Masuk
+
+**Role:** `staf_administrasi`  
+**Permission:** `surat_masuk.create`
+
+Aktivitas:
+- Menerima surat fisik atau digital
+- Menginput data surat ke sistem: Nomor surat, Tanggal terima, Asal surat, Pengirim, Perihal
+- Mengunggah lampiran (opsional)
+
+Status Surat: `draft` atau `diterima` (belum diverifikasi dan belum dapat didistribusikan)
+
+---
+
+### 🟡 Step 2 – Verifikasi Surat
+
+**Role:** `kepala_dinas`  
+**Permission:** `surat_masuk.verify`
+
+Aktivitas:
+- Memeriksa keaslian dan kelengkapan surat
+- Menentukan kelayakan surat untuk diproses
+
+Status Surat (hasil verifikasi):
+- `terverifikasi` (disetujui)
+- `ditolak` (tidak dapat dilanjutkan)
+
+---
+
+### 🔵 Step 3 – Distribusi / Disposisi Surat
+
+**Role:** `kepala_dinas`  
+**Permission:** `surat_masuk.distribute`
+
+Aktivitas:
+- Membuat disposisi surat
+- Menentukan tujuan disposisi ke Unit Kerja
+- Menambahkan catatan/instruksi
+
+Tabel Terkait: `disposisi`, `surat_masuk`
+
+Status Surat: `didisposisikan`
+
+---
+
+### 🟣 Step 4 – Tindak Lanjut Surat
+
+**Role:** `unit_kerja`  
+**Permission:** `surat_masuk.follow_up`
+
+Aktivitas:
+- Melihat surat yang telah didisposisikan
+- Melakukan tindak lanjut sesuai instruksi
+- Mengisi deskripsi tindak lanjut
+- Mengunggah lampiran hasil tindak lanjut (opsional)
+
+Tabel Terkait: `tindak_lanjut`, `lampiran`
+
+Status Surat: `ditindaklanjuti` (selesai operasional)
+
+---
+
+### ⚫ Step 5 – Pengarsipan Surat
+
+**Role:** `arsiparis`  
+**Permission:** `archive.manage`
+
+Aktivitas:
+- Mengarsipkan surat yang telah selesai diproses
+- Memindahkan surat ke menu Arsip (tidak muncul lagi di daftar aktif)
+
+Tabel Terkait: `arsip`
+
+Status Akhir: `arsip` (read-only setelah diarsipkan)
+
+---
+
+### 📊 Ringkasan Status & Wewenang
+
+| Status Surat | Role | Permission |
+|---|---|---|
+| `draft` / `diterima` | `staf_administrasi` | `surat_masuk.create` |
+| `terverifikasi` | `kepala_dinas` | `surat_masuk.verify` |
+| `didisposisikan` | `kepala_dinas` | `surat_masuk.distribute` |
+| `ditindaklanjuti` | `unit_kerja` | `surat_masuk.follow_up` |
+| `arsip` | `arsiparis` | `archive.manage` |
+
+
 ### ERD
 
 ![ERD](./Sentra.png)

@@ -13,6 +13,8 @@ use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\PermissionController as AdminPermissionController;
 use App\Http\Controllers\Admin\ArchiveController as AdminArchiveController;
 use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
+use App\Http\Controllers\ArsipController;
+use App\Http\Controllers\ReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,9 +61,16 @@ Route::middleware('auth')->group(function () {
 
     // Arsip (Global)
     Route::get('/archive', [AdminArchiveController::class, 'index'])->name('admin.arsip.index');
+    // Place specific route before parameterized route to avoid catching 'search' as {id}
+    Route::get('/archive/search', [AdminArchiveController::class, 'search'])->name('admin.arsip.search');
     Route::get('/archive/{id}', [AdminArchiveController::class, 'show'])->name('admin.arsip.show');
     Route::post('/archive/{id}/restore', [AdminArchiveController::class, 'restore'])->name('admin.arsip.restore');
     Route::delete('/archive/{id}', [AdminArchiveController::class, 'destroy'])->name('admin.arsip.destroy');
+
+    // Reports (Non-admin)
+    Route::get('/laporan', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/laporan/export/pdf', [ReportController::class, 'exportPdf'])->name('reports.export.pdf');
+    Route::get('/laporan/export/excel', [ReportController::class, 'exportExcel'])->name('reports.export.excel');
 
     // Non-admin: Surat Masuk
     Route::prefix('surat-masuk')->group(function () {

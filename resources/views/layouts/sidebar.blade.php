@@ -82,17 +82,6 @@
                     </div>
                 @endcan
 
-                @can('archive.read')
-                    <div class="menu-item">
-                        <a class="menu-link" href="{{ url('/admin/archive') }}">
-                            <span class="menu-icon">
-                                <i class="bi bi-archive fs-2"></i>
-                            </span>
-                            <span class="menu-title">Arsip (Global)</span>
-                        </a>
-                    </div>
-                @endcan
-
                 @can('notification.read')
                     <div class="menu-item">
                         <a class="menu-link" href="{{ url('/admin/notifications') }}">
@@ -167,6 +156,17 @@
                         <span class="menu-title">Notifikasi</span>
                     </a>
                 </div>
+
+                @can('report.read')
+                    <div class="menu-item">
+                        <a class="menu-link" href="{{ url('/laporan') }}">
+                            <span class="menu-icon">
+                                <i class="bi bi-bar-chart fs-2"></i>
+                            </span>
+                            <span class="menu-title">Laporan</span>
+                        </a>
+                    </div>
+                @endcan
 
                 @can('archive.read')
                     <div class="menu-item">

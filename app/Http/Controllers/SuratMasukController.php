@@ -31,7 +31,8 @@ class SuratMasukController extends Controller
             ->leftJoin('arsip', function ($join) {
                 $join->on('arsip.surat_id', '=', 'surat_masuk.id')
                      ->where('arsip.jenis_surat', '=', 'masuk');
-            });
+            })
+            ->whereNull('arsip.id'); // hide archived surat_masuk
         // Untuk Kepala Dinas: tampilkan hanya diterima/terverifikasi
         if (auth()->user()?->can('surat_masuk.verify') || auth()->user()?->can('surat_masuk.distribute')) {
             $q->whereIn('status', ['diterima', 'terverifikasi']);

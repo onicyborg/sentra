@@ -45,7 +45,8 @@ class SuratKeluarController extends Controller
             ->leftJoin('arsip', function ($join) {
                 $join->on('arsip.surat_id', '=', 'surat_keluar.id')
                      ->where('arsip.jenis_surat', '=', 'keluar');
-            });
+            })
+            ->whereNull('arsip.id'); // hide archived surat_keluar
         if (auth()->user()?->can('surat_keluar.approve')) {
             $q->whereIn('status', ['draft', 'ditolak']);
         }

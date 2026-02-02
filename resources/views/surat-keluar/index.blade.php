@@ -14,6 +14,11 @@
 
     <div class="card">
         <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-4 ms-auto">
+                    <input type="text" id="sk_search" class="form-control" placeholder="Cari nomor, tujuan, perihal, status...">
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table align-middle table-row-dashed fs-6 gy-5" id="surat_keluar_table">
                     <thead>
@@ -88,11 +93,18 @@
 @push('scripts')
     <script>
         $(document).ready(function() {
-            $('#surat_keluar_table').DataTable({
+            const table = $('#surat_keluar_table').DataTable({
                 pageLength: 10,
                 ordering: true,
                 order: [[1, 'desc']],
+                searching: true,
             });
+            const $search = $('#sk_search');
+            if ($search.length) {
+                $search.on('keyup change', function(){
+                    table.search(this.value).draw();
+                });
+            }
         });
 
         // Detail modal open & render

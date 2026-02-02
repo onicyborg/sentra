@@ -14,6 +14,11 @@
 
     <div class="card">
         <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-4 ms-auto">
+                    <input type="text" id="sm_search" class="form-control" placeholder="Cari nomor, asal/pengirim, perihal, status...">
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table align-middle table-row-dashed fs-6 gy-5" id="surat_masuk_table">
                     <thead>
@@ -92,11 +97,18 @@
 @push('scripts')
     <script>
         $(document).ready(function() {
-            $('#surat_masuk_table').DataTable({
+            const tableSM = $('#surat_masuk_table').DataTable({
                 pageLength: 10,
                 ordering: true,
                 order: [[1, 'desc']], // sort by tanggal terima desc by default
+                searching: true,
             });
+            const $searchSM = $('#sm_search');
+            if ($searchSM.length) {
+                $searchSM.on('keyup change', function(){
+                    tableSM.search(this.value).draw();
+                });
+            }
 
         // Detail modal open and render
         (function(){
