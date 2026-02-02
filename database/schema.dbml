@@ -64,6 +64,8 @@ Table surat_keluar {
   status varchar
   created_by uuid
   approved_by uuid
+  approved_at timestamp [null]
+  approved_note text [null]
   created_at timestamp
   updated_at timestamp
 }
