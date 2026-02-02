@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>Sistem Manajemen Magang Terpadu</strong><br>
-  Dibangun dengan Laravel 10 & PostgreSQL
+  <strong>Sistem Elektronik Naskah & Arsip</strong><br>
+  Dibangun dengan Laravel 10 & PostgreSQL/MySQL
 </p>
 
 ---
@@ -20,10 +20,16 @@ Sistem ini ditujukan untuk lingkungan **instansi pemerintahan**, khususnya **Din
 
 ### 🔥 Status Terbaru
 
-* **Dashboard inti siap**: ringkasan mahasiswa magang, status presensi, dan logbook terkini.
-* **Fitur presensi harian**: check-in & check-out dengan foto dan tanda tangan digital.
-* **Logbook aktivitas**: mendukung lampiran berkas dan persetujuan oleh dosen & pembina.
-* **Manajemen multi-institusi**: dukungan relasi ke entitas kampus untuk pelaporan lintas institusi.
+* **Surat Masuk & Surat Keluar** berfungsi penuh (CRUD modal-based, AJAX).
+* **Detail Modal**: tampilan baca (read-only) dengan timeline vertikal alur proses.
+  * Surat Masuk: Diterima → Verifikasi → Disposisi → Tindak Lanjut → Arsip.
+  * Surat Keluar: Draft → Persetujuan → Pengiriman → Arsip.
+* **Lampiran** di modal:
+  * Surat Masuk: dipisah antara Lampiran Surat (`lampiran/surat_masuk/`) dan Lampiran Tindak Lanjut (`lampiran/tindak_lanjut/`).
+  * Surat Keluar: daftar lampiran tampil di bawah timeline.
+* **Auto-Archive**: otomatis membuat entri arsip ketika status mencapai final (SM: "ditindaklanjuti", SK: "terkirim").
+* **Notifikasi**: layanan notifikasi event-driven, tanpa duplikasi, sesuai permission/ID user.
+* **RBAC**: peran & permission hibrid, aksi dibatasi sesuai hak akses.
 
 ### ✨ Fitur Utama
 
@@ -37,26 +43,30 @@ Sistem ini ditujukan untuk lingkungan **instansi pemerintahan**, khususnya **Din
 - Verifikasi dan disposisi surat
 - Tindak lanjut oleh unit kerja
 - Arsip digital surat masuk
+ - Detail modal dengan timeline vertikal dan pemisahan lampiran
 
 ### 📤 Surat Keluar
 - Pembuatan draft surat keluar
 - Proses pengesahan (approval)
 - Pencatatan pengiriman surat
 - Arsip digital surat keluar
+ - Detail modal dengan timeline vertikal dan lampiran
 
 ### 🔐 Manajemen Akses
 - Role-based access control
 - Permission berbasis aksi (hybrid static permission)
 - Dukungan multi-role dalam satu akun pengguna
+ - Aksi kunci (mis. verifikasi/disposisi/approve) hanya tampil untuk pengguna berizin
 
 ### 📂 Arsip & Laporan
 - Arsip surat digital terpusat
 - Pencarian surat berbasis metadata
 - Laporan surat masuk & keluar
+ - Halaman Arsip menampilkan detail yang menyesuaikan jenis surat (memanggil endpoint detail masing-masing)
 
 ### 🔔 Notifikasi
-- Notifikasi surat masuk baru
-- Notifikasi surat yang membutuhkan tindak lanjut
+- Notifikasi surat masuk baru, disposisi, tindak lanjut, persetujuan, pengiriman
+- Menghindari duplikasi, berbasis permission/ID user
 
 ### 🛠️ Teknologi yang Digunakan
 
@@ -66,6 +76,8 @@ Sistem ini ditujukan untuk lingkungan **instansi pemerintahan**, khususnya **Din
 - **Authentication:** Laravel Auth
 - **Authorization:** Policy & Gate (RBAC Hybrid)
 - **Identifier:** UUID (digunakan pada seluruh primary & foreign key)
+ - **UI Kit:** Metronic (Blade + Bootstrap 5)
+ - **Tabel:** DataTables (jQuery)
 
 ---
 
@@ -132,6 +144,13 @@ CREATE DATABASE sentra;
 php artisan migrate
 ```
 
+Jika Anda melakukan deploy pertama kali atau berpindah environment:
+
+```bash
+# Membuat symlink storage publik
+php artisan storage:link
+```
+
 ### 7️⃣ Setup Storage Link
 
 ```bash
@@ -145,6 +164,10 @@ php artisan serve
 ```
 
 Aplikasi akan berjalan di `http://localhost:8000`.
+
+Catatan:
+- Pastikan timezone aplikasi diatur ke `Asia/Jakarta` pada `config/app.php` atau `.env` jika diperlukan.
+- Pastikan direktori penyimpanan lampiran menggunakan disk `public` dan akses URL melalui `Storage::url()`.
 
 ---
 
@@ -163,6 +186,13 @@ Aplikasi akan berjalan di `http://localhost:8000`.
 * `lampiran` – Lampiran surat
 * `arsip` – Arsip digital
 * `notifications` – Notifikasi sistem
+
+### Alur & Perilaku Penting
+
+- Detail modal surat menggunakan fetch AJAX ke endpoint `show()` masing-masing surat.
+- Halaman Arsip menampilkan detail dengan cara mendeteksi `jenis_surat` lalu memanggil endpoint detail yang sesuai.
+- Auto-archive menyisipkan entri `arsip` ketika status mencapai tahap akhir (mencegah duplikasi).
+- Urutan tampilan list disortir di sisi PHP berdasarkan prioritas status; item yang sudah diarsip ditampilkan di bagian bawah.
 
 
 ### ERD
