@@ -279,18 +279,20 @@ Status Surat: `ditindaklanjuti` (selesai operasional)
 
 ---
 
-### ⚫ Step 5 – Pengarsipan Surat
+### ⚫ Step 5 – Pengarsipan Otomatis (Auto-Archive)
 
-**Role:** `arsiparis`  
-**Permission:** `archive.manage`
+Pengarsipan dilakukan otomatis oleh sistem ketika proses selesai.
 
-Aktivitas:
-- Mengarsipkan surat yang telah selesai diproses
-- Memindahkan surat ke menu Arsip (tidak muncul lagi di daftar aktif)
+Pemicu (trigger):
+- Surat Masuk: status menjadi `ditindaklanjuti`.
+- Surat Keluar: status menjadi `terkirim`.
+
+Perilaku:
+- Sistem membuat entri pada tabel `arsip` dan memindahkan surat dari daftar aktif.
+- Surat tidak lagi tampil pada listing aktif (SM/SK), namun tersedia di menu Arsip.
+- Arsip bersifat read-only.
 
 Tabel Terkait: `arsip`
-
-Status Akhir: `arsip` (read-only setelah diarsipkan)
 
 ---
 
@@ -303,6 +305,105 @@ Status Akhir: `arsip` (read-only setelah diarsipkan)
 | `didisposisikan` | `kepala_dinas` | `surat_masuk.distribute` |
 | `ditindaklanjuti` | `unit_kerja` | `surat_masuk.follow_up` |
 | `arsip` | `arsiparis` | `archive.manage` |
+
+
+## 🔄 Flow Sistem – Surat Keluar (SENTRA)
+
+Dokumen ini menjelaskan alur lengkap proses Surat Keluar pada sistem SENTRA berdasarkan role dan permission aktual.
+
+Flow dirancang untuk:
+- Mengontrol pembuatan dan pengesahan surat
+- Menjamin validitas surat resmi instansi
+- Mendukung pengiriman dan pengarsipan terstruktur
+- Menyediakan audit trail yang jelas
+
+### 👥 Role yang Terlibat
+
+| Role | Deskripsi |
+|---|---|
+| `staf_administrasi` | Penyusun dan pencatat surat keluar |
+| `kepala_dinas` | Pejabat pemberi persetujuan |
+| `admin_system` | Administrator sistem (non-operasional surat) |
+| `pengawas` | Pemantau dan auditor (read-only) |
+
+---
+
+### 🟢 Step 1 – Pembuatan Surat Keluar
+
+**Role:** `staf_administrasi`  
+**Permission:** `surat_keluar.create`
+
+Aktivitas:
+- Menyusun surat keluar
+- Menginput data: Nomor, Tanggal, Tujuan, Perihal, Isi
+- Mengunggah lampiran (opsional)
+
+Status Surat: `draft` (belum sah dan belum dapat dikirim)
+
+---
+
+### 🟡 Step 2 – Pengajuan Persetujuan
+
+**Role:** `staf_administrasi`  
+**Permission:** `surat_keluar.create`
+
+Aktivitas:
+- Mengajukan surat untuk disetujui Kepala Dinas
+- Masuk antrean persetujuan
+
+Catatan: Status tetap `draft` hingga diproses di tahap persetujuan.
+
+---
+
+### 🔵 Step 3 – Persetujuan Surat Keluar
+
+**Role:** `kepala_dinas`  
+**Permission:** `surat_keluar.approve`
+
+Aktivitas:
+- Meninjau isi surat
+- Menyetujui atau menolak surat
+
+Status Surat (hasil persetujuan):
+- `disahkan` (disetujui)
+- `ditolak` (dapat direvisi oleh Staf Administrasi)
+
+---
+
+### 🟣 Step 4 – Pengiriman Surat
+
+**Role:** `staf_administrasi`  
+**Permission:** `surat_keluar.send`
+
+Aktivitas:
+- Mengirim surat ke tujuan (Email/Pos/Media lain)
+- Mencatat tanggal dan metode pengiriman
+
+Status Surat: `terkirim` (sah secara eksternal)
+
+---
+
+### ⚫ Step 5 – Pengarsipan Otomatis (Auto-Archive)
+
+Pengarsipan dilakukan otomatis oleh sistem ketika Surat Keluar berstatus `terkirim`.
+
+Perilaku:
+- Sistem membuat entri pada tabel `arsip` dan memindahkan surat dari daftar aktif
+- Surat tidak lagi tampil pada listing aktif; tersedia di menu Arsip
+- Arsip bersifat read-only
+
+Tabel Terkait: `arsip`
+
+---
+
+### 📊 Ringkasan Status & Wewenang
+
+| Status Surat | Role | Permission |
+|---|---|---|
+| `draft` | `staf_administrasi` | `surat_keluar.create` |
+| `disahkan` | `kepala_dinas` | `surat_keluar.approve` |
+| `ditolak` | `kepala_dinas` | `surat_keluar.approve` |
+| `terkirim` | `staf_administrasi` | `surat_keluar.send` |
 
 
 ### ERD
