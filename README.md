@@ -1,7 +1,7 @@
 # SENTRA
 
 <p align="center">
-  <img src="./public/assets/media/logos/Sentra-Default.png" width="200" alt="Sentra Logo">
+  <img src="./Sentra-Default.png" width="200" alt="Sentra Logo">
 </p>
 
 <p align="center">
