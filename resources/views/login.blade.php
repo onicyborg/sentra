@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <!--begin::Head-->
+
 <head>
     <base href="{{ asset('') }}" />
     <title>SENTRA - Login</title>
@@ -14,21 +15,21 @@
     <link rel="shortcut icon" href="{{ asset('assets/media/logos/favicon.ico') }}" />
 
     <!-- Fonts -->
-    <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css?family=Inter:300,400,500,600,700" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,400,500,600,700" />
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
 
     <!-- Global Stylesheets Bundle -->
-    <link href="{{ asset('assets/plugins/global/plugins.bundle.css') }}"
-          rel="stylesheet" type="text/css" />
-    <link href="{{ asset('assets/css/style.bundle.css') }}"
-          rel="stylesheet" type="text/css" />
+    <link href="{{ asset('assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet" type="text/css" />
+    <link href="{{ asset('assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css" />
 </head>
 <!--end::Head-->
 
 <!--begin::Body-->
-<body id="kt_app_body"
-      class="app-blank bgi-size-cover bgi-attachment-fixed bgi-position-center"
-      data-kt-app-layout="dark-sidebar">
+
+<body id="kt_app_body" class="app-blank bgi-size-cover bgi-attachment-fixed bgi-position-center"
+    data-kt-app-layout="dark-sidebar">
 
     <!-- Theme mode -->
     <script>
@@ -75,9 +76,9 @@
                 <!--begin::Content-->
                 <div class="d-flex flex-column flex-center p-10 w-100">
                     <img class="theme-light-show mx-auto mw-100 w-150px w-lg-300px mb-10"
-                         src="{{ asset('assets/media/auth/agency.png') }}" alt="" />
+                        src="{{ asset('assets/media/auth/agency.png') }}" alt="" />
                     <img class="theme-dark-show mx-auto mw-100 w-150px w-lg-300px mb-10"
-                         src="{{ asset('assets/media/auth/agency-dark.png') }}" alt="" />
+                        src="{{ asset('assets/media/auth/agency-dark.png') }}" alt="" />
 
                     <h1 class="text-gray-800 fs-2qx fw-bold text-center mb-7">SENTRA</h1>
                     <div class="text-gray-600 fs-base text-center">
@@ -97,7 +98,7 @@
                     <div class="w-md-400px">
                         <!--begin::Form-->
                         <form class="form w-100" id="kt_sign_in_form" method="POST"
-                              action="{{ route('login.attempt') }}">
+                            action="{{ route('login.attempt') }}">
                             @csrf
 
                             <!--begin::Heading-->
@@ -111,21 +112,26 @@
 
                             <!--begin::Input group-->
                             <div class="fv-row mb-8">
-                                <input type="text" placeholder="Email"
-                                       name="email" autocomplete="off"
-                                       class="form-control bg-transparent @error('email') is-invalid @enderror"
-                                       value="{{ old('email') }}" />
+                                <input type="text" placeholder="Email" name="email" autocomplete="off"
+                                    class="form-control bg-transparent @error('email') is-invalid @enderror"
+                                    value="{{ old('email') }}" />
                                 @error('email')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                                    <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
                             <div class="fv-row mb-8">
-                                <input type="password" placeholder="Password" name="password"
-                                       autocomplete="off"
-                                       class="form-control bg-transparent @error('password') is-invalid @enderror" />
+                                <div class="position-relative">
+                                    <input type="password" placeholder="Password" name="password" autocomplete="off"
+                                        class="form-control bg-transparent @error('password') is-invalid @enderror pe-10" />
+                                    <span
+                                        class="position-absolute end-0 top-0 h-100 d-flex align-items-center px-3 text-gray-600 toggle-password"
+                                        style="cursor: pointer;">
+                                        <i class="bi bi-eye-slash fs-4"></i>
+                                    </span>
+                                </div>
                                 @error('password')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                                    <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
                             <!--end::Input group-->
@@ -138,13 +144,12 @@
                             <!--end::Actions-->
 
                             <div class="d-grid mb-10">
-                                <button type="submit" id="kt_sign_in_submit"
-                                        class="btn btn-primary">
+                                <button type="submit" id="kt_sign_in_submit" class="btn btn-primary">
                                     <span class="indicator-label">Masuk</span>
                                 </button>
                             </div>
 
-                            @if(session('error'))
+                            @if (session('error'))
                                 <div class="alert alert-danger">
                                     {{ session('error') }}
                                 </div>
@@ -171,6 +176,27 @@
     <script src="{{ asset('assets/plugins/global/plugins.bundle.js') }}"></script>
     <script src="{{ asset('assets/js/scripts.bundle.js') }}"></script>
     <!--end::Javascript-->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleButtons = document.querySelectorAll('.toggle-password');
+            toggleButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const input = this.previousElementSibling;
+                    const icon = this.querySelector('i');
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.classList.remove('bi-eye-slash');
+                        icon.classList.add('bi-eye');
+                    } else {
+                        input.type = 'password';
+                        icon.classList.remove('bi-eye');
+                        icon.classList.add('bi-eye-slash');
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 <!--end::Body-->
 
