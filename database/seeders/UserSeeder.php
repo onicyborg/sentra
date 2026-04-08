@@ -2,11 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class UserSeeder extends Seeder
 {
@@ -15,6 +12,8 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        $defaultUnitKerjaId = DB::table('unit_kerja')->where('name', 'Unit Kerja Default')->value('id');
+
         // Seed users per current data snapshot
         $users = [
             [
@@ -22,6 +21,7 @@ class UserSeeder extends Seeder
                 'name' => 'Super Admin',
                 'email' => 'admin@example.com',
                 'password' => '$2y$12$8LeixxvQRVFrqJPU8NUASObflqkLalM1Gl1lF6ilWJq5/.CnIfTLK',
+                'unit_kerja_id' => null,
                 'created_at' => null,
                 'updated_at' => null,
             ],
@@ -30,6 +30,7 @@ class UserSeeder extends Seeder
                 'name' => 'Tony Stark',
                 'email' => 'tony@example.com',
                 'password' => '$2y$12$VbQHt3ud.Gy4oTmOXyVwMOp/LXfUjPwpZR6ouwCip/4PrzaIQaBum',
+                'unit_kerja_id' => null,
                 'created_at' => '2026-02-01 15:57:54',
                 'updated_at' => '2026-02-01 15:57:54',
             ],
@@ -38,6 +39,7 @@ class UserSeeder extends Seeder
                 'name' => 'Bruce Banner',
                 'email' => 'bruce@example.com',
                 'password' => '$2y$12$I2c1wqAeSb65.vTMATFCvOqCvfmdWulSFN8wCxz4bs4sBq42gkgSW',
+                'unit_kerja_id' => null,
                 'created_at' => '2026-02-01 15:59:31',
                 'updated_at' => '2026-02-01 15:59:31',
             ],
@@ -46,6 +48,7 @@ class UserSeeder extends Seeder
                 'name' => 'Thor Odinson',
                 'email' => 'thor@example.com',
                 'password' => '$2y$12$i2wck0Di7e9mAnVVNx.tHePLOOX8AxxI5qIt9PiLqSXL2IpvOjyK.',
+                'unit_kerja_id' => $defaultUnitKerjaId,
                 'created_at' => '2026-02-01 17:02:28',
                 'updated_at' => '2026-02-01 17:02:28',
             ],

@@ -29,9 +29,14 @@
                                 <td>{{ $u->email }}</td>
                                 <td>
                                     @if($u->roles && $u->roles->count())
+                                        @php $isUnitKerja = $u->roles->contains(fn($rr) => $rr->name === 'unit_kerja'); @endphp
                                         @foreach ($u->roles as $r)
                                             <span class="badge badge-light-primary me-1 mb-1">{{ $r->name }}</span>
                                         @endforeach
+
+                                        @if($isUnitKerja)
+                                            <span class="badge badge-light-info me-1 mb-1">Unit: {{ $u->unitKerja?->name ?? '-' }}</span>
+                                        @endif
                                     @else
                                         <span class="text-muted">-</span>
                                     @endif
@@ -95,9 +100,24 @@
                                     <select class="form-select" name="role_id" id="user_role" style="width:100%">
                                         <option value="">- Select Role -</option>
                                         @foreach ($roles as $r)
-                                            <option value="{{ $r->id }}">{{ $r->description }}</option>
+                                            <option value="{{ $r->id }}" data-role-name="{{ $r->name }}">{{ $r->description }}</option>
                                         @endforeach
                                     </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-5">
+                                    <label class="form-label">Unit Kerja</label>
+                                    <select class="form-select" name="unit_kerja_id" id="user_unit_kerja" style="width:100%" disabled>
+                                        <option value="">- Pilih Unit Kerja -</option>
+                                        @foreach (($unitKerja ?? []) as $uk)
+                                            <option value="{{ $uk->id }}">{{ $uk->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted d-block mt-1">Hanya wajib jika role = Unit Kerja.</small>
                                 </div>
                             </div>
                         </div>
@@ -149,6 +169,15 @@
                 dropdownParent: $('#userModal'),
                 width: '100%'
             });
+
+            $('#user_role').on('change', function () {
+                toggleUnitKerjaSelect();
+            });
+
+            $('#user_unit_kerja').select2({
+                dropdownParent: $('#userModal'),
+                width: '100%'
+            });
         });
 
         const btnAdd = document.getElementById('btnAddUser');
@@ -159,7 +188,21 @@
         const inputEmail = document.getElementById('user_email');
         const inputPassword = document.getElementById('user_password');
         const selectRole = document.getElementById('user_role');
+        const selectUnit = document.getElementById('user_unit_kerja');
         const title = document.getElementById('userModalTitle');
+
+        function toggleUnitKerjaSelect() {
+            const selectedRoleId = selectRole?.value || '';
+            const roleOpt = selectRole?.querySelector(`option[value="${selectedRoleId}"]`);
+            const roleName = roleOpt?.getAttribute('data-role-name') || '';
+            const isUnitKerja = roleName === 'unit_kerja';
+            if (selectUnit) {
+                $(selectUnit).prop('disabled', !isUnitKerja);
+                if (!isUnitKerja) {
+                    $(selectUnit).val('').trigger('change');
+                }
+            }
+        }
 
         btnAdd?.addEventListener('click', () => {
             form.action = '{{ url('/admin/users') }}';
@@ -169,8 +212,10 @@
             inputEmail.value = '';
             inputPassword.value = '';
             $(selectRole).val('').trigger('change');
+            $(selectUnit).val('').trigger('change');
             title.textContent = 'Add User';
             inputPassword.required = true;
+            toggleUnitKerjaSelect();
         });
 
         document.querySelectorAll('.btn-edit').forEach(btn => {
@@ -186,9 +231,12 @@
                         inputEmail.value = data.email || '';
                         const roleId = (data.roles && data.roles.length) ? data.roles[0].id : '';
                         $(selectRole).val(roleId).trigger('change');
+                        const unitId = data.unit_kerja_id || '';
+                        $(selectUnit).val(unitId).trigger('change');
                         title.textContent = 'Edit User';
                         inputPassword.value = '';
                         inputPassword.required = false;
+                        toggleUnitKerjaSelect();
                     });
             });
         });

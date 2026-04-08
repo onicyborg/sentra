@@ -29,6 +29,11 @@ class SuratMasuk extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function currentUnitKerja(): BelongsTo
+    {
+        return $this->belongsTo(UnitKerja::class, 'current_unit_kerja_id');
+    }
+
     public function disposisi(): HasMany
     {
         return $this->hasMany(Disposisi::class);

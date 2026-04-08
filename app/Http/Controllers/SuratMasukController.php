@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Disposisi;
 use App\Models\Lampiran;
 use App\Models\SuratMasuk;
+use App\Models\UnitKerja;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use App\Services\NotificationService;
 
@@ -33,9 +33,24 @@ class SuratMasukController extends Controller
                      ->where('arsip.jenis_surat', '=', 'masuk');
             })
             ->whereNull('arsip.id'); // hide archived surat_masuk
+
+        // Untuk Unit Kerja: hanya lihat surat yang saat ini didisposisikan ke unitnya
+        if (auth()->user()?->roles()->where('name', 'unit_kerja')->exists()) {
+            $unitKerjaId = auth()->user()->unit_kerja_id;
+            if ($unitKerjaId) {
+                $q->where('current_unit_kerja_id', $unitKerjaId);
+            } else {
+                $q->whereRaw('1 = 0');
+            }
+        }
+
         // Untuk Kepala Dinas: tampilkan hanya diterima/terverifikasi
         if (auth()->user()?->can('surat_masuk.verify') || auth()->user()?->can('surat_masuk.distribute')) {
-            $q->whereIn('status', ['diterima', 'terverifikasi']);
+            $statuses = ['diterima', 'terverifikasi'];
+            if (auth()->user()?->can('surat_masuk.distribute')) {
+                $statuses[] = 'didisposisikan';
+            }
+            $q->whereIn('status', $statuses);
         }
         $items = $q->get([
             'surat_masuk.id',
@@ -74,6 +89,7 @@ class SuratMasukController extends Controller
 
         return view('surat-masuk.index', [
             'items' => $items,
+            'unitKerja' => UnitKerja::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -127,6 +143,14 @@ class SuratMasukController extends Controller
     public function show(string $id)
     {
         $sm = SuratMasuk::findOrFail($id);
+
+        if (auth()->user()?->roles()->where('name', 'unit_kerja')->exists()) {
+            $unitKerjaId = auth()->user()->unit_kerja_id;
+            if (! $unitKerjaId || $sm->current_unit_kerja_id !== $unitKerjaId) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+        }
+
         $lampiran = $sm->lampiran()
             ->where('file_path', 'like', 'lampiran/surat_masuk/%')
             ->get(['id','file_path']);
@@ -163,9 +187,7 @@ class SuratMasukController extends Controller
                     'id' => $l->id,
                     // Normalisasi: ambil hanya path dari hasil Storage::url lalu prefix dengan host saat ini
                     'url' => (function () use ($l) {
-                        $raw = Storage::disk('public')->url($l->file_path);
-                        $path = parse_url($raw, PHP_URL_PATH) ?? $raw;
-                        return request()->getSchemeAndHttpHost() . $path;
+                        return request()->getSchemeAndHttpHost() . '/storage/' . ltrim($l->file_path, '/');
                     })(),
                     'name' => basename($l->file_path),
                 ];
@@ -174,9 +196,7 @@ class SuratMasukController extends Controller
                 return [
                     'id' => $l->id,
                     'url' => (function () use ($l) {
-                        $raw = Storage::disk('public')->url($l->file_path);
-                        $path = parse_url($raw, PHP_URL_PATH) ?? $raw;
-                        return request()->getSchemeAndHttpHost() . $path;
+                        return request()->getSchemeAndHttpHost() . '/storage/' . ltrim($l->file_path, '/');
                     })(),
                     'name' => basename($l->file_path),
                 ];
@@ -281,30 +301,38 @@ class SuratMasukController extends Controller
     public function distribute(Request $request, string $id)
     {
         $sm = SuratMasuk::findOrFail($id);
-        // Hanya boleh disposisi jika sudah terverifikasi
-        if ($sm->status !== 'terverifikasi') {
-            return back()->with('error', 'Surat belum terverifikasi, tidak dapat didisposisikan.');
+        // Boleh disposisi jika sudah terverifikasi atau sedang didisposisikan (pindah unit)
+        if (! in_array($sm->status, ['terverifikasi', 'didisposisikan'], true)) {
+            return back()->with('error', 'Surat tidak dapat didisposisikan pada status saat ini.');
         }
 
         $validated = $request->validate([
-            'ke_unit' => ['required','string','max:190'],
+            'unit_kerja_id' => ['required', 'uuid', Rule::exists('unit_kerja', 'id')],
             'catatan' => ['nullable','string','max:1000'],
         ]);
 
+        if ($sm->status === 'didisposisikan' && $sm->current_unit_kerja_id === $validated['unit_kerja_id']) {
+            return back()->with('error', 'Surat sudah berada pada unit kerja yang dipilih.');
+        }
+
         DB::transaction(function () use ($validated, $sm) {
+            $unit = UnitKerja::findOrFail($validated['unit_kerja_id']);
             Disposisi::create([
                 'surat_masuk_id' => $sm->id,
                 'dari_user' => auth()->id(),
-                'ke_unit' => $validated['ke_unit'],
+                'ke_unit' => $unit->name,
+                'unit_kerja_id' => $validated['unit_kerja_id'],
                 'catatan' => $validated['catatan'] ?? null,
                 'status' => 'baru',
             ]);
             $sm->status = 'didisposisikan';
+            $sm->current_unit_kerja_id = $validated['unit_kerja_id'];
             $sm->save();
 
             // Event: surat_masuk.distributed -> to permission surat_masuk.follow_up
             try {
-                app(NotificationService::class)->sendToPermission(
+                app(NotificationService::class)->sendToUnitPermission(
+                    $validated['unit_kerja_id'],
                     'surat_masuk.follow_up',
                     'Surat Masuk Didisposisikan',
                     'Surat masuk ' . ($sm->nomor_surat ?? '-') . ' membutuhkan tindak lanjut.'

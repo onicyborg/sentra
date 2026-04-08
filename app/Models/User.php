@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Models\Concerns\HasUuid;
 use App\Models\Pivots\RoleUser;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -26,6 +27,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'unit_kerja_id',
     ];
 
     /**
@@ -78,5 +80,10 @@ class User extends Authenticatable
     public function suratKeluar(): HasMany
     {
         return $this->hasMany(SuratKeluar::class, 'created_by');
+    }
+
+    public function unitKerja(): BelongsTo
+    {
+        return $this->belongsTo(UnitKerja::class, 'unit_kerja_id');
     }
 }

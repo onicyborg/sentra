@@ -18,6 +18,7 @@ class Disposisi extends Model
         'surat_masuk_id',
         'dari_user',
         'ke_unit',
+        'unit_kerja_id',
         'catatan',
         'status',
     ];
@@ -30,5 +31,10 @@ class Disposisi extends Model
     public function dari(): BelongsTo
     {
         return $this->belongsTo(User::class, 'dari_user');
+    }
+
+    public function unitKerja(): BelongsTo
+    {
+        return $this->belongsTo(UnitKerja::class, 'unit_kerja_id');
     }
 }

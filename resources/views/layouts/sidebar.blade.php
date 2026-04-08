@@ -58,6 +58,15 @@
                             <span class="menu-title">Users</span>
                         </a>
                     </div>
+
+                    <div class="menu-item">
+                        <a class="menu-link" href="{{ url('/admin/unit-kerja') }}">
+                            <span class="menu-icon">
+                                <i class="bi bi-diagram-3 fs-2"></i>
+                            </span>
+                            <span class="menu-title">Unit Kerja</span>
+                        </a>
+                    </div>
                 @endcan
 
                 @can('role.manage')

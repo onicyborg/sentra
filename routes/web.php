@@ -11,9 +11,9 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\PermissionController as AdminPermissionController;
+use App\Http\Controllers\Admin\UnitKerjaController as AdminUnitKerjaController;
 use App\Http\Controllers\Admin\ArchiveController as AdminArchiveController;
 use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
-use App\Http\Controllers\ArsipController;
 use App\Http\Controllers\ReportController;
 
 /*
@@ -45,6 +45,9 @@ Route::middleware('auth')->group(function () {
         // Dashboard
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
         Route::resource('users', AdminUserController::class)
+            ->only(['index', 'store', 'show', 'update', 'destroy']);
+
+        Route::resource('unit-kerja', AdminUnitKerjaController::class)
             ->only(['index', 'store', 'show', 'update', 'destroy']);
 
         Route::resource('roles', AdminRoleController::class)

@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Roles;
+use App\Models\UnitKerja;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -19,10 +19,11 @@ class UserController extends Controller
 
     public function index()
     {
-        $users = User::with('roles')->orderBy('name')->get();
+        $users = User::with(['roles', 'unitKerja'])->orderBy('name')->get();
         $roles = Roles::orderBy('name')->get();
+        $unitKerja = UnitKerja::orderBy('name')->get(['id', 'name']);
 
-        return view('users.index', compact('users', 'roles'));
+        return view('users.index', compact('users', 'roles', 'unitKerja'));
     }
 
     public function store(Request $request)
@@ -32,7 +33,14 @@ class UserController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:6'],
             'role_id' => ['nullable', 'uuid', Rule::exists('roles', 'id')],
+            'unit_kerja_id' => ['nullable', 'uuid', Rule::exists('unit_kerja', 'id')],
         ]);
+
+        $roleId = $validated['role_id'] ?? null;
+        $roleName = $roleId ? Roles::where('id', $roleId)->value('name') : null;
+        if ($roleName === 'unit_kerja' && empty($validated['unit_kerja_id'])) {
+            return redirect()->back()->with('error', 'Unit kerja wajib diisi untuk role Unit Kerja.');
+        }
 
         $user = new User();
         $user->name = $validated['name'];
@@ -41,8 +49,14 @@ class UserController extends Controller
         $user->save();
 
         // Assign a single role if provided
-        $roleId = $validated['role_id'] ?? null;
         $user->roles()->sync($roleId ? [$roleId] : []);
+        if ($roleName === 'unit_kerja') {
+            $user->unit_kerja_id = $validated['unit_kerja_id'];
+            $user->save();
+        } else {
+            $user->unit_kerja_id = null;
+            $user->save();
+        }
 
         return redirect()->back()->with('success', 'User created');
     }
@@ -54,6 +68,7 @@ class UserController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'unit_kerja_id' => $user->unit_kerja_id,
             'roles' => $user->roles->map(fn($r) => ['id' => $r->id, 'name' => $r->name]),
         ]);
     }
@@ -67,7 +82,14 @@ class UserController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:6'],
             'role_id' => ['nullable', 'uuid', Rule::exists('roles', 'id')],
+            'unit_kerja_id' => ['nullable', 'uuid', Rule::exists('unit_kerja', 'id')],
         ]);
+
+        $roleId = $validated['role_id'] ?? null;
+        $roleName = $roleId ? Roles::where('id', $roleId)->value('name') : null;
+        if ($roleName === 'unit_kerja' && empty($validated['unit_kerja_id'])) {
+            return redirect()->back()->with('error', 'Unit kerja wajib diisi untuk role Unit Kerja.');
+        }
 
         $user->name = $validated['name'];
         $user->email = $validated['email'];
@@ -76,8 +98,14 @@ class UserController extends Controller
         }
         $user->save();
 
-        $roleId = $validated['role_id'] ?? null;
         $user->roles()->sync($roleId ? [$roleId] : []);
+        if ($roleName === 'unit_kerja') {
+            $user->unit_kerja_id = $validated['unit_kerja_id'];
+            $user->save();
+        } else {
+            $user->unit_kerja_id = null;
+            $user->save();
+        }
 
         return redirect()->back()->with('success', 'User updated');
     }

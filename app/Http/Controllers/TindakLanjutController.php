@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Lampiran;
 use App\Models\SuratMasuk;
 use App\Models\Disposisi;
+use App\Models\UnitKerja;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Services\NotificationService;
@@ -22,9 +22,19 @@ class TindakLanjutController extends Controller
     public function index()
     {
         // Ambil semua surat masuk dengan status didisposisikan atau ditindaklanjuti
-        $items = SuratMasuk::query()
-            ->whereIn('status', ['didisposisikan', 'ditindaklanjuti'])
-            ->latest('created_at')
+        $q = SuratMasuk::query()
+            ->whereIn('status', ['didisposisikan', 'ditindaklanjuti']);
+
+        if (auth()->user()?->roles()->where('name', 'unit_kerja')->exists()) {
+            $unitKerjaId = auth()->user()->unit_kerja_id;
+            if ($unitKerjaId) {
+                $q->where('current_unit_kerja_id', $unitKerjaId);
+            } else {
+                $q->whereRaw('1 = 0');
+            }
+        }
+
+        $items = $q->latest('created_at')
             ->get(['id','nomor_surat','tanggal_terima','asal_surat','perihal','status']);
 
         // Ambil catatan disposisi terakhir per surat
@@ -48,6 +58,13 @@ class TindakLanjutController extends Controller
             return back()->with('error', 'Surat tidak dapat ditindaklanjuti pada status saat ini.');
         }
 
+        if (auth()->user()?->roles()->where('name', 'unit_kerja')->exists()) {
+            $unitKerjaId = auth()->user()->unit_kerja_id;
+            if (! $unitKerjaId || $sm->current_unit_kerja_id !== $unitKerjaId) {
+                return back()->with('error', 'Anda tidak memiliki akses ke surat ini.');
+            }
+        }
+
         $validated = $request->validate([
             'deskripsi' => ['required','string'],
             'lampiran' => ['nullable','array'],
@@ -55,11 +72,22 @@ class TindakLanjutController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $request, $sm) {
+            $latestDisposisi = Disposisi::query()
+                ->where('surat_masuk_id', $sm->id)
+                ->orderByDesc('created_at')
+                ->first();
+
+            $unitName = null;
+            if ($latestDisposisi?->unit_kerja_id) {
+                $unitName = UnitKerja::where('id', $latestDisposisi->unit_kerja_id)->value('name');
+            }
+            $unitName = $unitName ?: ($latestDisposisi->ke_unit ?? null);
+
             // Simpan tindak lanjut (tabel tindak_lanjut)
             DB::table('tindak_lanjut')->insert([
-                'id' => (string) \Str::uuid(),
+                'id' => (string) Str::uuid(),
                 'surat_masuk_id' => $sm->id,
-                'unit' => $sm->disposisi->first()->ke_unit,
+                'unit' => $unitName,
                 'deskripsi' => $validated['deskripsi'],
             ]);
 

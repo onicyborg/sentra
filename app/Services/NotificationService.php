@@ -40,6 +40,20 @@ class NotificationService
         }
     }
 
+    public function sendToUnitPermission(string $unitKerjaId, string $permissionKey, string $title, string $message): void
+    {
+        $users = User::query()
+            ->where('unit_kerja_id', $unitKerjaId)
+            ->get()
+            ->filter(function ($u) use ($permissionKey) {
+                return $u->can($permissionKey);
+            });
+
+        foreach ($users as $user) {
+            $this->sendToUser($user->id, $title, $message);
+        }
+    }
+
     public function markAsRead(string $notificationId): void
     {
         DB::table('notifications')

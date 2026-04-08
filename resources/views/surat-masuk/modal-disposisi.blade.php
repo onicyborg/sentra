@@ -13,7 +13,12 @@
                 <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
                     <div class="mb-5">
                         <label class="form-label">Tujuan Unit Kerja</label>
-                        <input type="text" class="form-control" name="ke_unit" id="d_ke_unit" required maxlength="190" placeholder="Nama unit tujuan">
+                        <select class="form-select" name="unit_kerja_id" id="d_unit_kerja_id" required>
+                            <option value="">- Pilih Unit Kerja -</option>
+                            @foreach (($unitKerja ?? []) as $uk)
+                                <option value="{{ $uk->id }}">{{ $uk->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="mb-5">
                         <label class="form-label">Catatan Disposisi (opsional)</label>

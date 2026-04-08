@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             PermissionSeeder::class,
             PermissionRoleSeeder::class,
+            \Database\Seeders\UnitKerjaSeeder::class,
             UserSeeder::class,
         ]);
     }

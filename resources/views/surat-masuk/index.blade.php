@@ -73,7 +73,7 @@
                                     @endcan
 
                                     @can('surat_masuk.distribute')
-                                    @php $distributable = strtolower($it->status) === 'terverifikasi'; @endphp
+                                    @php $distributable = in_array(strtolower($it->status), ['terverifikasi', 'didisposisikan']); @endphp
                                     <button class="btn btn-light-info btn-sm btn-disposisi {{ $distributable ? '' : 'disabled' }}" data-id="{{ $it->id }}" data-bs-toggle="modal" data-bs-target="#disposisiSuratMasukModal">
                                         <i class="bi bi-share"></i>
                                     </button>
@@ -401,7 +401,8 @@
                         // list lampiran
                         const list = document.getElementById('e_lampiran_list');
                         list.innerHTML = '';
-                        (data.lampiran || []).forEach(l => {
+                        const existingLampiran = data.lampiran_surat || data.lampiran || [];
+                        existingLampiran.forEach(l => {
                             const a = document.createElement('a');
                             a.href = l.url;
                             a.target = '_blank';
@@ -410,12 +411,19 @@
                             list.appendChild(a);
                         });
 
+                        if (!existingLampiran.length) {
+                            list.innerHTML = '<span class="text-muted">-</span>';
+                        }
+
                         // hide upload if not editable
                         const uploadGroup = document.getElementById('e_lampiran_group');
                         if (uploadGroup) uploadGroup.style.display = editable ? '' : 'none';
 
                         // set submit button state
-                        document.getElementById('btnUpdateSuratMasuk').disabled = !editable;
+                        const btnSave = document.getElementById('btnUpdateSave');
+                        if (btnSave) btnSave.disabled = !editable;
+                        const btnSubmit = document.getElementById('btnUpdateSubmit');
+                        if (btnSubmit) btnSubmit.disabled = !editable;
                     });
             });
         });
