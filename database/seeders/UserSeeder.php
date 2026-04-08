@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
@@ -12,7 +13,10 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $defaultUnitKerjaId = DB::table('unit_kerja')->where('name', 'Unit Kerja Default')->value('id');
+        $ukPaudPnfId = DB::table('unit_kerja')->where('name', 'Bidang Pembinaan PAUD & PNF (Pendidikan Nonformal)')->value('id');
+        $ukSdId = DB::table('unit_kerja')->where('name', 'Bidang Pembinaan Sekolah Dasar (SD)')->value('id');
+        $ukSmpId = DB::table('unit_kerja')->where('name', 'Bidang Pembinaan SMP')->value('id');
+        $ukPtkId = DB::table('unit_kerja')->where('name', 'Bidang Ketenagaan (PTK)')->value('id');
 
         // Seed users per current data snapshot
         $users = [
@@ -48,9 +52,36 @@ class UserSeeder extends Seeder
                 'name' => 'Thor Odinson',
                 'email' => 'thor@example.com',
                 'password' => '$2y$12$i2wck0Di7e9mAnVVNx.tHePLOOX8AxxI5qIt9PiLqSXL2IpvOjyK.',
-                'unit_kerja_id' => $defaultUnitKerjaId,
+                'unit_kerja_id' => $ukSmpId,
                 'created_at' => '2026-02-01 17:02:28',
                 'updated_at' => '2026-02-01 17:02:28',
+            ],
+            [
+                'id' => 'fd0c5c5f-5a63-4a2b-8fdf-2f6e4e51b1c0',
+                'name' => 'Steve Rogers',
+                'email' => 'steve@example.com',
+                'password' => Hash::make('password'),
+                'unit_kerja_id' => $ukPaudPnfId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'a9f5d0db-5bdb-4c1d-8fbe-8d6b2a1d9d03',
+                'name' => 'Natasha Romanoff',
+                'email' => 'natasha@example.com',
+                'password' => Hash::make('password'),
+                'unit_kerja_id' => $ukSdId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => '3f2b12a1-6a1d-4cf4-9e4f-7e4b9e7e2d65',
+                'name' => 'Clint Barton',
+                'email' => 'clint@example.com',
+                'password' => Hash::make('password'),
+                'unit_kerja_id' => $ukPtkId,
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
         ];
 
@@ -81,6 +112,21 @@ class UserSeeder extends Seeder
             [
                 'id' => '2271d6e7-d402-45f0-9b5f-9d78c7a2a1ff',
                 'user_id' => '77bdf118-c84e-438d-b444-98bd4243f1db',
+                'role_id' => 'a991e2d2-b4fe-4bbf-a38e-b17d60e1c843', // unit_kerja
+            ],
+            [
+                'id' => '7a1e6e0b-7c06-4f3e-9ef8-72f2c9b004d1',
+                'user_id' => 'fd0c5c5f-5a63-4a2b-8fdf-2f6e4e51b1c0',
+                'role_id' => 'a991e2d2-b4fe-4bbf-a38e-b17d60e1c843', // unit_kerja
+            ],
+            [
+                'id' => '5e7c2f1c-2b93-4c7a-8e6f-b8f8e0d10e31',
+                'user_id' => 'a9f5d0db-5bdb-4c1d-8fbe-8d6b2a1d9d03',
+                'role_id' => 'a991e2d2-b4fe-4bbf-a38e-b17d60e1c843', // unit_kerja
+            ],
+            [
+                'id' => 'e22a975a-8e54-4fb1-b3d5-4b7a2d45711f',
+                'user_id' => '3f2b12a1-6a1d-4cf4-9e4f-7e4b9e7e2d65',
                 'role_id' => 'a991e2d2-b4fe-4bbf-a38e-b17d60e1c843', // unit_kerja
             ],
         ];

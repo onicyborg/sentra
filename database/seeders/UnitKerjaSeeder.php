@@ -11,7 +11,10 @@ class UnitKerjaSeeder extends Seeder
     public function run(): void
     {
         $units = [
-            'Unit Kerja Default',
+            'Bidang Pembinaan PAUD & PNF (Pendidikan Nonformal)',
+            'Bidang Pembinaan Sekolah Dasar (SD)',
+            'Bidang Pembinaan SMP',
+            'Bidang Ketenagaan (PTK)',
         ];
 
         foreach ($units as $name) {
