@@ -44,8 +44,6 @@ class PermissionRoleSeeder extends Seeder
                 'archive.manage',
 
                 // Notification
-                'notification.read',
-
                 // Report
                 'report.read',
                 'report.export',
@@ -65,14 +63,17 @@ class PermissionRoleSeeder extends Seeder
                 'surat_masuk.read',
                 'surat_keluar.create',
                 'surat_keluar.read',
+                'surat_keluar.send',
             ],
 
             // =====================
             // KEPALA DINAS
             // =====================
             'kepala_dinas' => [
+                'surat_masuk.read',
                 'surat_masuk.verify',
                 'surat_masuk.distribute',
+                'surat_keluar.read',
                 'surat_keluar.approve',
                 'report.read',
             ],
@@ -120,16 +121,28 @@ class PermissionRoleSeeder extends Seeder
             }
 
             foreach ($permissions as $permissionKey => $permissionId) {
-                DB::table('permission_role')->updateOrInsert(
-                    [
-                        'role_id'       => $roles[$roleName],
-                        'permission_id' => $permissionId,
-                    ],
-                    [
-                        'id'      => Str::uuid(),
-                        'allowed' => in_array($permissionKey, $allowedPermissionKeys, true),
-                    ]
-                );
+                $attributes = [
+                    'role_id'       => $roles[$roleName],
+                    'permission_id' => $permissionId,
+                ];
+
+                $values = [
+                    'allowed' => in_array($permissionKey, $allowedPermissionKeys, true),
+                ];
+
+                $existing = DB::table('permission_role')->where($attributes)->first();
+
+                if ($existing) {
+                    DB::table('permission_role')
+                        ->where('id', $existing->id)
+                        ->update($values);
+                } else {
+                    DB::table('permission_role')->insert(array_merge(
+                        ['id' => Str::uuid()],
+                        $attributes,
+                        $values
+                    ));
+                }
             }
         }
     }
